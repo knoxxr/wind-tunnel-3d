@@ -85,7 +85,7 @@
     input[type="range"].aero-slider::-webkit-slider-thumb:hover {
       transform: scale(1.18);
     }
-    button.tab-btn, button.preset-btn, button.surface-btn, button.colormap-btn, button.rake-btn, button.slice-btn, button.front-btn, button.up-btn {
+    button.glass-panel, button.tab-btn, button.preset-btn, button.surface-btn, button.colormap-btn, button.rake-btn, button.slice-btn, button.front-btn, button.up-btn, button.paint-btn {
       transition: none !important;
     }
     button.tab-active {
@@ -284,6 +284,17 @@
             <button data-surface="studio" class="surface-btn pill-active py-1.5 rounded-lg border border-[var(--border)] text-[11px] transition">스튜디오</button>
             <button data-surface="pressure" class="surface-btn py-1.5 rounded-lg border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">표면 압력(Cp)</button>
             <button data-surface="wireframe" class="surface-btn py-1.5 rounded-lg border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">와이어프레임</button>
+          </div>
+          <!-- Studio Paint Swatches -->
+          <div class="flex items-center justify-between pt-1.5">
+            <span class="text-[11px] text-[var(--muted-foreground)]">차체 페인트</span>
+            <div class="flex items-center gap-1.5">
+              <button data-paint="silver" class="paint-btn pill-active rounded-full border border-[var(--border)] cursor-pointer" style="width:20px;height:20px;padding:2px;" title="티타늄 실버"><span class="block rounded-full" style="width:100%;height:100%;background:linear-gradient(135deg,#e2e8f0,#7c8ba1);"></span></button>
+              <button data-paint="red" class="paint-btn rounded-full border border-[var(--border)] cursor-pointer" style="width:20px;height:20px;padding:2px;" title="코르사 레드"><span class="block rounded-full" style="width:100%;height:100%;background:linear-gradient(135deg,#ef4444,#881313);"></span></button>
+              <button data-paint="blue" class="paint-btn rounded-full border border-[var(--border)] cursor-pointer" style="width:20px;height:20px;padding:2px;" title="사파이어 블루"><span class="block rounded-full" style="width:100%;height:100%;background:linear-gradient(135deg,#3b82f6,#1e3a8a);"></span></button>
+              <button data-paint="graphite" class="paint-btn rounded-full border border-[var(--border)] cursor-pointer" style="width:20px;height:20px;padding:2px;" title="스텔스 그라파이트"><span class="block rounded-full" style="width:100%;height:100%;background:linear-gradient(135deg,#475569,#0f172a);"></span></button>
+              <button data-paint="green" class="paint-btn rounded-full border border-[var(--border)] cursor-pointer" style="width:20px;height:20px;padding:2px;" title="브리티시 레이싱 그린"><span class="block rounded-full" style="width:100%;height:100%;background:linear-gradient(135deg,#10b981,#064e3b);"></span></button>
+            </div>
           </div>
         </div>
 
@@ -664,23 +675,28 @@
       }
     }
     addWheel(cx, cy, cz, radius, width, tirePart = 1, rimPart = 5) {
-      const segs = 28;
+      const segs = 40;
       const hw = width * 0.5;
-      const rimR = radius * 0.64;
-      const treadInset = width * 0.08;
-      // Tire outer tread + rounded sidewalls
+      const rimR = radius * 0.68;
+      const treadInset = width * 0.10;
+      const outSide = cz >= 0 ? 1 : -1;
+
+      // High-res rounded tire tread + curved sidewalls + rim bead lip
       const ringProfile = [
-        [rimR, -hw * 0.88],
-        [radius * 0.94, -hw],
+        [rimR * 0.94, -hw * 0.82],
+        [rimR, -hw * 0.90],
+        [radius * 0.95, -hw],
         [radius, -hw + treadInset],
         [radius, hw - treadInset],
-        [radius * 0.94, hw],
-        [rimR, hw * 0.88],
+        [radius * 0.95, hw],
+        [rimR, hw * 0.90],
+        [rimR * 0.94, hw * 0.82],
       ];
       const rings = [];
       for (let r = 0; r < ringProfile.length; r++) {
         const [rad, zOff] = ringProfile[r];
         const ring = [];
+        const pid = (r === 0 || r === 7) ? rimPart : tirePart;
         for (let i = 0; i <= segs; i++) {
           const a = (i / segs) * Math.PI * 2;
           const ca = Math.cos(a), sa = Math.sin(a);
@@ -688,11 +704,13 @@
           const y = cy + sa * rad;
           const z = cz + zOff;
           let nx = ca, ny = sa, nz = 0;
-          if (r === 0) { nx = ca * 0.2; ny = sa * 0.2; nz = -0.98; }
-          else if (r === 1) { nx = ca * 0.7; ny = sa * 0.7; nz = -0.7; }
-          else if (r === 4) { nx = ca * 0.7; ny = sa * 0.7; nz = 0.7; }
-          else if (r === 5) { nx = ca * 0.2; ny = sa * 0.2; nz = 0.98; }
-          ring.push(this.addVertex(x, y, z, nx, ny, nz, tirePart));
+          if (r === 0) { nx = -ca * 0.7; ny = -sa * 0.7; nz = -0.7; }
+          else if (r === 1) { nx = ca * 0.2; ny = sa * 0.2; nz = -0.98; }
+          else if (r === 2) { nx = ca * 0.7; ny = sa * 0.7; nz = -0.7; }
+          else if (r === 5) { nx = ca * 0.7; ny = sa * 0.7; nz = 0.7; }
+          else if (r === 6) { nx = ca * 0.2; ny = sa * 0.2; nz = 0.98; }
+          else if (r === 7) { nx = -ca * 0.7; ny = -sa * 0.7; nz = 0.7; }
+          ring.push(this.addVertex(x, y, z, nx, ny, nz, pid));
         }
         rings.push(ring);
       }
@@ -701,28 +719,61 @@
           this.addQuad(rings[r][i], rings[r][i + 1], rings[r + 1][i + 1], rings[r + 1][i]);
         }
       }
-      // Alloy Rim Face (both sides + hub dish + 5 spokes on outer face)
-      for (const side of [-1, 1]) {
-        const zFace = cz + side * hw * 0.76;
-        const cIdx = this.addVertex(cx, cy, zFace - side * 0.03, 0, 0, side, rimPart);
-        const rimRing = [];
-        for (let i = 0; i <= segs; i++) {
-          const a = (i / segs) * Math.PI * 2;
-          rimRing.push(this.addVertex(cx + Math.cos(a) * rimR, cy + Math.sin(a) * rimR, zFace, 0, 0, side, rimPart));
-        }
-        for (let i = 0; i < segs; i++) {
-          if (side > 0) this.addTri(cIdx, rimRing[i], rimRing[i + 1]);
-          else this.addTri(cIdx, rimRing[i + 1], rimRing[i]);
-        }
+
+      // Deep-dish inner wheel barrel (dark carbon/shadow) + slotted steel brake disc rotor (partId=6)
+      const zRotor = cz + outSide * (hw * 0.44);
+      const rotorR = rimR * 0.78;
+      const rotorCenter = this.addVertex(cx, cy, zRotor, 0, 0, outSide, 6);
+      const rotorRing = [];
+      for (let i = 0; i <= segs; i++) {
+        const a = (i / segs) * Math.PI * 2;
+        rotorRing.push(this.addVertex(cx + Math.cos(a) * rotorR, cy + Math.sin(a) * rotorR, zRotor, 0, 0, outSide, 6));
       }
-      // 5 Raised Rim Spokes on outward-facing side
-      const outSide = cz >= 0 ? 1 : -1;
-      const zSpoke = cz + outSide * (hw * 0.80);
+      for (let i = 0; i < segs; i++) {
+        if (outSide > 0) this.addTri(rotorCenter, rotorRing[i], rotorRing[i + 1]);
+        else this.addTri(rotorCenter, rotorRing[i + 1], rotorRing[i]);
+      }
+      // Inner wheel back cap
+      const inSide = -outSide;
+      const zBack = cz + inSide * (hw * 0.72);
+      const backC = this.addVertex(cx, cy, zBack, 0, 0, inSide, 3);
+      const backRing = [];
+      for (let i = 0; i <= segs; i++) {
+        const a = (i / segs) * Math.PI * 2;
+        backRing.push(this.addVertex(cx + Math.cos(a) * rimR * 0.94, cy + Math.sin(a) * rimR * 0.94, zBack, 0, 0, inSide, 3));
+      }
+      for (let i = 0; i < segs; i++) {
+        if (inSide > 0) this.addTri(backC, backRing[i], backRing[i + 1]);
+        else this.addTri(backC, backRing[i + 1], backRing[i]);
+      }
+
+      // Stationary Performance Brake Caliper (partId = 7 — crimson racing caliper, stays non-rotating!)
+      const calAng = cx < 0 ? 0.45 : Math.PI - 0.45; // sits toward center of car
+      const calX = cx + Math.cos(calAng) * rotorR * 0.74;
+      const calY = cy + Math.sin(calAng) * rotorR * 0.74;
+      this.addBox(calX, calY, cz + outSide * (hw * 0.56), rotorR * 0.34, rotorR * 0.54, 0.055, 7, calAng - Math.PI * 0.5, 0);
+
+      // Forged 5x2 Split Y-Spoke Alloy Racing Rim + Center Lock Hub (partId = 5)
+      const zSpoke = cz + outSide * (hw * 0.78);
+      const hubR = rimR * 0.24;
+      const hubC = this.addVertex(cx, cy, zSpoke + outSide * 0.025, 0, 0, outSide, 7);
+      const hubRing = [];
+      for (let i = 0; i <= 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        hubRing.push(this.addVertex(cx + Math.cos(a) * hubR, cy + Math.sin(a) * hubR, zSpoke + outSide * 0.012, 0, 0, outSide, rimPart));
+      }
+      for (let i = 0; i < 16; i++) {
+        if (outSide > 0) this.addTri(hubC, hubRing[i], hubRing[i + 1]);
+        else this.addTri(hubC, hubRing[i + 1], hubRing[i]);
+      }
       for (let s = 0; s < 5; s++) {
-        const ang = (s / 5) * Math.PI * 2;
-        const midX = cx + Math.cos(ang) * rimR * 0.48;
-        const midY = cy + Math.sin(ang) * rimR * 0.48;
-        this.addBox(midX, midY, zSpoke, rimR * 0.88, radius * 0.11, 0.028, rimPart, ang, 0);
+        const baseAng = (s / 5) * Math.PI * 2;
+        for (const spread of [-0.15, 0.15]) {
+          const ang = baseAng + spread;
+          const midX = cx + Math.cos(ang) * rimR * 0.54;
+          const midY = cy + Math.sin(ang) * rimR * 0.54;
+          this.addBox(midX, midY, zSpoke, rimR * 0.84, radius * 0.068, 0.026, rimPart, ang, 0);
+        }
       }
     }
     addExtrudedAirfoil(xCenter, yCenter, chord, thickness, camber, span, pitchRad, partId = 3, withEndplates = false) {
@@ -856,7 +907,7 @@
   function buildLoftedVehicle(mb, config) {
     const { stations, profileFn, partFn } = config;
     const nX = stations.length;
-    const nAng = 32;
+    const nAng = config.nAng || 44;
     const rings = [];
     for (let ix = 0; ix < nX; ix++) {
       const x = stations[ix];
@@ -875,7 +926,7 @@
       }
     }
     // Front & rear end caps
-    const frontCenter = mb.addVertex(stations[0] - 0.015, config.frontCapY, 0, -1, 0, 0, 0);
+    const frontCenter = mb.addVertex(stations[0] - 0.015, config.frontCapY, 0, -1, 0, 0, config.frontCapPart ?? 3);
     for (let ia = 0; ia < nAng; ia++) {
       mb.addTri(frontCenter, rings[0][ia + 1], rings[0][ia]);
     }
@@ -888,44 +939,46 @@
   function createSportsCarMesh() {
     const mb = new MeshBuilder();
     const stations = [];
-    for (let i = 0; i <= 44; i++) {
-      const t = i / 44;
-      stations.push(-2.22 + t * 4.44);
+    for (let i = 0; i <= 72; i++) {
+      const t = i / 72;
+      stations.push(-2.24 + t * 4.48);
     }
 
     function topY(x) {
-      if (x < -1.95) return lerp(0.32, 0.56, smoothstep(-2.22, -1.95, x));
-      if (x < -1.02) return lerp(0.56, 0.78, smoothstep(-1.95, -1.02, x));
-      if (x < -0.18) return lerp(0.78, 1.24, smoothstep(-1.02, -0.18, x));
-      if (x < 0.72)  return lerp(1.24, 1.12, smoothstep(-0.18, 0.72, x));
-      if (x < 1.55)  return lerp(1.12, 0.86, smoothstep(0.72, 1.55, x));
-      return lerp(0.86, 0.89, smoothstep(1.55, 2.22, x));
+      if (x < -1.94) return lerp(0.30, 0.56, smoothstep(-2.24, -1.94, x));
+      if (x < -1.00) return lerp(0.56, 0.78, smoothstep(-1.94, -1.00, x));
+      if (x < -0.16) return lerp(0.78, 1.23, smoothstep(-1.00, -0.16, x));
+      if (x < 0.72)  return lerp(1.23, 1.11, smoothstep(-0.16, 0.72, x));
+      if (x < 1.56)  return lerp(1.11, 0.85, smoothstep(0.72, 1.56, x));
+      return lerp(0.85, 0.89, smoothstep(1.56, 2.24, x));
     }
     function beltY(x) {
-      if (x < -1.85) return lerp(0.30, 0.58, smoothstep(-2.22, -1.85, x));
-      if (x < -1.05) return lerp(0.58, 0.76, smoothstep(-1.85, -1.05, x));
+      if (x < -1.85) return lerp(0.28, 0.57, smoothstep(-2.24, -1.85, x));
+      if (x < -1.05) return lerp(0.57, 0.76, smoothstep(-1.85, -1.05, x));
       if (x < 1.45)  return lerp(0.76, 0.85, smoothstep(-1.05, 1.45, x));
-      return lerp(0.85, 0.83, smoothstep(1.45, 2.22, x));
+      return lerp(0.85, 0.83, smoothstep(1.45, 2.24, x));
     }
     function botY(x) {
-      if (x < -1.88) return lerp(0.22, 0.15, smoothstep(-2.22, -1.88, x));
-      if (x < 1.52)  return 0.15;
-      return lerp(0.15, 0.36, smoothstep(1.52, 2.22, x));
+      if (x < -1.88) return lerp(0.21, 0.145, smoothstep(-2.24, -1.88, x));
+      if (x < 1.52)  return 0.145;
+      return lerp(0.145, 0.36, smoothstep(1.52, 2.24, x));
     }
     function halfW(x) {
       let w = 0.91;
-      if (x < -1.85) w = lerp(0.54, 0.90, smoothstep(-2.22, -1.85, x));
-      else if (x < -0.75) w = 0.90 + 0.08 * Math.exp(-Math.pow((x + 1.34) / 0.42, 2));
-      else if (x < 0.65) w = 0.90;
-      else if (x < 1.95) w = 0.90 + 0.11 * Math.exp(-Math.pow((x - 1.32) / 0.48, 2));
-      else w = lerp(0.95, 0.83, smoothstep(1.95, 2.22, x));
+      if (x < -1.84) w = lerp(0.56, 0.91, smoothstep(-2.24, -1.84, x));
+      else if (x < -0.75) w = 0.91 + 0.085 * Math.exp(-Math.pow((x + 1.34) / 0.42, 2));
+      else if (x < 0.65) w = 0.895;
+      else if (x < 1.96) w = 0.895 + 0.125 * Math.exp(-Math.pow((x - 1.32) / 0.48, 2));
+      else w = lerp(0.95, 0.84, smoothstep(1.96, 2.24, x));
       return w;
     }
 
     buildLoftedVehicle(mb, {
       stations,
-      frontCapY: 0.28,
-      rearCapY: 0.62,
+      nAng: 48,
+      frontCapY: 0.27,
+      frontCapPart: 3,
+      rearCapY: 0.60,
       profileFn(x, theta) {
         const yt = topY(x);
         const yb = botY(x);
@@ -933,28 +986,27 @@
         let w = halfW(x);
         const s = Math.sin(theta);
         const c = Math.cos(theta);
-        const absC = Math.abs(c);
         const signC = c >= 0 ? 1 : -1;
         let y, z;
         if (s >= 0) {
-          // Upper half: lower shoulder -> greenhouse tumblehome -> smooth roof crown
           const hBelt = Math.max(0.01, yblt - (yb + 0.10));
           const hCab = Math.max(0.0, yt - yblt);
           if (s < 0.42) {
             const t = s / 0.42;
             y = (yb + 0.10) + t * hBelt;
-            z = signC * w * Math.pow(1 - 0.05 * t * t, 0.6);
+            // Subtle sculpted door character crease / aerodynamic side channel
+            const doorScoop = (x > -0.55 && x < 0.85) ? 0.045 * Math.sin(clamp((x + 0.55) / 1.4, 0, 1) * Math.PI) * Math.sin(t * Math.PI) : 0;
+            z = signC * (w * Math.pow(1 - 0.05 * t * t, 0.6) - doorScoop);
           } else {
-            const t = (s - 0.42) / 0.58; // 0 at beltline -> 1 at centerline roof
+            const t = (s - 0.42) / 0.58;
             const cabFactor = smoothstep(0.02, 0.18, hCab);
-            const roofHalfW = lerp(w * 0.88, w * 0.66, cabFactor);
+            const roofHalfW = lerp(w * 0.88, w * 0.65, cabFactor);
             const curW = lerp(w * 0.97, roofHalfW, Math.pow(t, 0.72));
             y = yblt + hCab * Math.sin(t * Math.PI * 0.5);
             z = signC * curW * Math.cos(t * Math.PI * 0.5);
           }
         } else {
-          // Lower body + flat underfloor
-          const t = -s; // 0 at side -> 1 at floor center
+          const t = -s;
           y = lerp(yb + 0.10, yb, Math.pow(t, 0.55));
           z = signC * w * Math.cos(t * Math.PI * 0.5);
         }
@@ -962,13 +1014,13 @@
         // Smooth wheel arch indentation for wheels at x=-1.34 & x=+1.32
         const dFront = Math.hypot(x + 1.34, Math.max(0, y - 0.34));
         const dRear  = Math.hypot(x - 1.32, Math.max(0, y - 0.36));
-        if (dFront < 0.44 && Math.abs(z) > 0.60 && y < 0.72) {
-          const indent = smoothstep(0.44, 0.28, dFront);
-          z -= signC * 0.20 * indent;
-        }
-        if (dRear < 0.46 && Math.abs(z) > 0.60 && y < 0.76) {
-          const indent = smoothstep(0.46, 0.30, dRear);
+        if (dFront < 0.45 && Math.abs(z) > 0.60 && y < 0.74) {
+          const indent = smoothstep(0.45, 0.28, dFront);
           z -= signC * 0.22 * indent;
+        }
+        if (dRear < 0.47 && Math.abs(z) > 0.60 && y < 0.78) {
+          const indent = smoothstep(0.47, 0.30, dRear);
+          z -= signC * 0.24 * indent;
         }
         return [x, y, z];
       },
@@ -976,12 +1028,12 @@
         const yblt = beltY(x);
         const yt = topY(x);
         // Glass greenhouse (windshield, side windows, rear glass)
-        if (x > -1.00 && x < 1.35 && y > yblt + 0.04 && yt - yblt > 0.12) {
+        if (x > -0.98 && x < 1.34 && y > yblt + 0.04 && yt - yblt > 0.12) {
           const inRoofCenter = x > -0.22 && x < 0.68 && Math.abs(z) < 0.48 && y > yt - 0.06;
           if (!inRoofCenter) return 2; // tinted glass
         }
-        // Lower aero sill / diffuser
-        if (y < botY(x) + 0.06 || (x > 2.15 && y < 0.58)) return 3; // carbon
+        // Lower carbon aero sill, front lower intake grille, rear mesh fascia
+        if (y < botY(x) + 0.06 || (x < -2.14 && y < 0.38) || (x > 2.16 && y < 0.62)) return 3;
         return 0; // metallic car paint
       }
     });
@@ -991,30 +1043,44 @@
     const tmpNorm = recomputeSmoothNormals(new Float32Array(mb.pos), new Uint32Array(mb.idx));
     for (let i = 0; i < bodyVertEnd * 3; i++) mb.norm[i] = tmpNorm[i];
 
-    // Sleek tucked carbon front splitter + side canards
-    mb.addBox(-1.92, 0.145, 0, 0.58, 0.028, 1.64, 3);
-    mb.addBox(-2.14, 0.148, 0, 0.22, 0.024, 1.32, 3);
-    // Dedicated flush LED headlights & full-width LED rear taillight strip
-    mb.addBox(-2.06, 0.49, 0.62, 0.22, 0.055, 0.24, 4, -0.28, 0.22);
-    mb.addBox(-2.06, 0.49, -0.62, 0.22, 0.055, 0.24, 4, -0.28, -0.22);
-    mb.addBox(2.21, 0.72, 0, 0.05, 0.042, 1.48, 4);
-    // Side aero skirts
-    mb.addBox(0.0, 0.145, 0.89, 1.88, 0.036, 0.12, 3);
-    mb.addBox(0.0, 0.145, -0.89, 1.88, 0.036, 0.12, 3);
-    // Rear diffuser vertical strakes
-    for (const zOff of [-0.52, -0.26, 0, 0.26, 0.52]) {
-      mb.addBox(2.02, 0.26, zOff, 0.44, 0.15, 0.022, 3, 0.26);
+    // Sleek carbon front splitter + side dive planes (canards)
+    mb.addBox(-1.92, 0.145, 0, 0.58, 0.026, 1.66, 3);
+    mb.addBox(-2.16, 0.148, 0, 0.22, 0.022, 1.34, 3);
+    mb.addBox(-2.06, 0.32, 0.84, 0.22, 0.02, 0.12, 3, 0.18, 0.35);
+    mb.addBox(-2.06, 0.32, -0.84, 0.22, 0.02, 0.12, 3, 0.18, -0.35);
+    // Dedicated flush DRL LED headlights & full-width crimson LED taillight bar
+    mb.addBox(-2.07, 0.48, 0.62, 0.24, 0.048, 0.24, 4, -0.26, 0.22);
+    mb.addBox(-2.07, 0.48, -0.62, 0.24, 0.048, 0.24, 4, -0.26, -0.22);
+    mb.addBox(2.23, 0.72, 0, 0.05, 0.036, 1.50, 4);
+    // Side intake scoops & carbon side aero skirts
+    mb.addBox(0.56, 0.52, 0.89, 0.38, 0.22, 0.05, 3, 0, 0.14);
+    mb.addBox(0.56, 0.52, -0.89, 0.38, 0.22, 0.05, 3, 0, -0.14);
+    mb.addBox(0.0, 0.145, 0.89, 1.88, 0.034, 0.13, 3);
+    mb.addBox(0.0, 0.145, -0.89, 1.88, 0.034, 0.13, 3);
+    // Mid-engine rear deck louvers (carbon slats)
+    for (let lv = 0; lv < 5; lv++) {
+      const lx = 1.18 + lv * 0.14;
+      const ly = lerp(0.99, 0.86, lv / 4);
+      mb.addBox(lx, ly, 0, 0.06, 0.018, 0.76 - lv * 0.03, 3, -0.18);
     }
-    // Elevated GT Rear Wing (inverted cambered airfoil for downforce!)
-    mb.addExtrudedAirfoil(2.04, 1.15, 0.36, 0.12, -0.055, 1.72, -0.14, 3, true);
-    // Wing pylons
-    mb.addBox(1.94, 0.99, 0.44, 0.22, 0.30, 0.03, 3, -0.22);
-    mb.addBox(1.94, 0.99, -0.44, 0.22, 0.30, 0.03, 3, -0.22);
-    // Side mirrors
-    mb.addBox(-0.62, 0.85, 0.95, 0.17, 0.08, 0.14, 0);
-    mb.addBox(-0.62, 0.85, -0.95, 0.17, 0.08, 0.14, 0);
+    // Rear diffuser vertical strakes + quad brushed titanium exhaust tips
+    for (const zOff of [-0.54, -0.27, 0, 0.27, 0.54]) {
+      mb.addBox(2.02, 0.26, zOff, 0.46, 0.15, 0.022, 3, 0.26);
+    }
+    for (const zEx of [-0.40, -0.28, 0.28, 0.40]) {
+      mb.addBox(2.21, 0.39, zEx, 0.12, 0.062, 0.062, 5);
+    }
+    // Elevated GT Rear Wing (inverted cambered airfoil + sculpted endplates + swan-neck pylons)
+    mb.addExtrudedAirfoil(2.05, 1.15, 0.36, 0.12, -0.055, 1.74, -0.14, 3, true);
+    mb.addBox(1.94, 0.99, 0.44, 0.20, 0.31, 0.028, 3, -0.24);
+    mb.addBox(1.94, 0.99, -0.44, 0.20, 0.31, 0.028, 3, -0.24);
+    // Sleek aero side mirrors with stalks
+    mb.addBox(-0.62, 0.84, 0.95, 0.17, 0.068, 0.14, 0, 0, 0.16);
+    mb.addBox(-0.62, 0.84, -0.95, 0.17, 0.068, 0.14, 0, 0, -0.16);
+    mb.addBox(-0.62, 0.80, 0.88, 0.08, 0.03, 0.10, 3);
+    mb.addBox(-0.62, 0.80, -0.88, 0.08, 0.03, 0.10, 3);
 
-    // 4 Detailed Wheels resting at y = 0
+    // 4 Detailed Forged Wheels with Brake Rotors & Crimson Calipers resting at y = 0
     mb.addWheel(-1.34, 0.34, 0.85, 0.34, 0.26, 1, 5);
     mb.addWheel(-1.34, 0.34, -0.85, 0.34, 0.26, 1, 5);
     mb.addWheel(1.32, 0.36, 0.88, 0.36, 0.30, 1, 5);
@@ -2304,19 +2370,27 @@
       const COLORMAP_GLSL = `
         vec3 aeroColormap(float t) {
           t = clamp(t, 0.0, 1.0);
-          vec3 c0 = vec3(0.08, 0.22, 0.58);
-          vec3 c1 = vec3(0.06, 0.62, 0.85);
-          vec3 c2 = vec3(0.16, 0.80, 0.52);
-          vec3 c3 = vec3(0.96, 0.78, 0.20);
-          vec3 c4 = vec3(0.90, 0.20, 0.16);
+          vec3 c0 = vec3(0.06, 0.19, 0.62);
+          vec3 c1 = vec3(0.04, 0.65, 0.88);
+          vec3 c2 = vec3(0.14, 0.84, 0.50);
+          vec3 c3 = vec3(0.98, 0.78, 0.16);
+          vec3 c4 = vec3(0.94, 0.18, 0.15);
           if (t < 0.25) return mix(c0, c1, t / 0.25);
           if (t < 0.50) return mix(c1, c2, (t - 0.25) / 0.25);
           if (t < 0.75) return mix(c2, c3, (t - 0.50) / 0.25);
           return mix(c3, c4, (t - 0.75) / 0.25);
         }
+        vec3 acesFilm(vec3 x) {
+          const float a = 2.51;
+          const float b = 0.03;
+          const float c = 2.43;
+          const float d = 0.59;
+          const float e = 0.14;
+          return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+        }
       `;
 
-      // 1. Model Shader (Studio PBR / Cp Pressure Heatmap / X-Ray CAD)
+      // 1. Model Shader (GGX Clearcoat PBR + Procedural Wind-Tunnel Studio IBL + Carbon Fiber + Brake Calipers + Cp Heatmap)
       this.modelProg = this.createProgram(
         `#version 300 es
         precision highp float;
@@ -2330,13 +2404,15 @@
         uniform vec2 uFrontAxle;
         uniform vec2 uRearAxle;
         out vec3 vWorldPos;
+        out vec3 vLocalPos;
         out vec3 vNormal;
         flat out float vPart;
         out float vCp;
         void main() {
           vec3 pos = aPos;
           vec3 nrm = aNorm;
-          if (uHasWheels > 0.5 && (abs(aPart - 1.0) < 0.2 || abs(aPart - 5.0) < 0.2)) {
+          // Spin tires(1), forged rims(5), and brake rotors(6), while keeping brake calipers(7) stationary!
+          if (uHasWheels > 0.5 && (abs(aPart - 1.0) < 0.2 || abs(aPart - 5.0) < 0.2 || abs(aPart - 6.0) < 0.2)) {
             vec2 axle = pos.x < 0.0 ? uFrontAxle : uRearAxle;
             vec2 rel = pos.xy - axle;
             float c = cos(uWheelSpin), s = sin(uWheelSpin);
@@ -2345,6 +2421,7 @@
             nrm.xy = vec2(nrm.x * c - nrm.y * s, nrm.x * s + nrm.y * c);
           }
           vWorldPos = pos;
+          vLocalPos = aPos;
           vNormal = normalize(nrm);
           vPart = aPart;
           vCp = aCp;
@@ -2353,88 +2430,167 @@
         `#version 300 es
         precision highp float;
         in vec3 vWorldPos;
+        in vec3 vLocalPos;
         in vec3 vNormal;
         flat in float vPart;
         in float vCp;
         uniform vec3 uCamPos;
+        uniform vec3 uPaintColor;
         uniform int uSurfaceMode; // 0=studio, 1=pressure, 2=wireframe-xray
         uniform float uLightTheme;
         out vec4 fragColor;
         ${COLORMAP_GLSL}
+
+        // GGX Microfacet Specular Distribution
+        float D_GGX(float ndh, float rough) {
+          float a = max(rough * rough, 0.002);
+          float a2 = a * a;
+          float d = ndh * ndh * (a2 - 1.0) + 1.0;
+          return a2 / (3.14159265 * d * d + 1e-5);
+        }
+
+        // Procedural Wind-Tunnel Studio Environment Reflection (IBL)
+        vec3 sampleStudioEnv(vec3 R, float rough, float lt) {
+          vec3 upBg = mix(vec3(0.05, 0.075, 0.12), vec3(0.72, 0.78, 0.88), lt);
+          vec3 horBg = mix(vec3(0.09, 0.13, 0.19), vec3(0.86, 0.89, 0.94), lt);
+          vec3 floorBg = mix(vec3(0.03, 0.04, 0.06), vec3(0.55, 0.60, 0.66), lt);
+          vec3 env = R.y >= 0.0 ? mix(horBg, upBg, pow(R.y, 0.65)) : mix(horBg * 0.7, floorBg, clamp(-R.y * 2.2, 0.0, 1.0));
+
+          // 3 Overhead Linear Wind-Tunnel LED Softbox Strips
+          float blur = mix(0.04, 0.36, rough);
+          if (R.y > 0.10) {
+            float yBand = smoothstep(0.18, 0.55, R.y);
+            float stripC = smoothstep(0.09 + blur, 0.01, abs(R.z));
+            float stripL = smoothstep(0.09 + blur, 0.01, abs(R.z - 0.54));
+            float stripR = smoothstep(0.09 + blur, 0.01, abs(R.z + 0.54));
+            float xFade = smoothstep(0.95, 0.25, abs(R.x));
+            float softboxes = max(stripC, max(stripL, stripR)) * yBand * xFade;
+            vec3 lightCol = mix(vec3(1.9, 2.05, 2.3), vec3(2.4, 2.5, 2.6), lt);
+            env += lightCol * softboxes * mix(1.0, 0.35, rough);
+          }
+          // Subtle cool-cyan wind tunnel inlet nozzle rim glow (-X direction)
+          float inletGlow = smoothstep(0.2, 0.92, -R.x) * smoothstep(0.55, 0.05, abs(R.y - 0.12));
+          env += vec3(0.18, 0.52, 0.88) * inletGlow * mix(0.55, 0.25, lt);
+          // Subtle architectural side horizon light band
+          float sideRibbon = smoothstep(0.20 + blur, 0.02, abs(R.y - 0.08)) * smoothstep(0.2, 0.85, abs(R.z));
+          env += mix(vec3(0.32, 0.42, 0.56), vec3(0.95, 0.98, 1.0), lt) * sideRibbon * 0.55;
+          return env;
+        }
+
         void main() {
           vec3 N = normalize(vNormal);
           if (!gl_FrontFacing) N = -N;
           vec3 V = normalize(uCamPos - vWorldPos);
-          float ndv = max(dot(N, V), 0.0);
-          float fresnel = pow(1.0 - ndv, 3.6);
+          vec3 R = reflect(-V, N);
+          float ndv = max(dot(N, V), 0.001);
 
-          // Studio Wind Tunnel Lighting (2 overhead softboxes + key + floor bounce)
-          vec3 L1 = normalize(vec3(-0.35, 0.92, 0.45));
-          vec3 L2 = normalize(vec3(0.45, 0.85, -0.52));
+          // Key & Fill Studio Lights
+          vec3 L1 = normalize(vec3(-0.32, 0.90, 0.48));
+          vec3 L2 = normalize(vec3(0.52, 0.82, -0.50));
           vec3 H1 = normalize(L1 + V);
           vec3 H2 = normalize(L2 + V);
-          float diff1 = max(dot(N, L1), 0.0);
-          float diff2 = max(dot(N, L2), 0.0);
-          float hemi = 0.5 + 0.5 * N.y;
+          float ndl1 = max(dot(N, L1), 0.0);
+          float ndl2 = max(dot(N, L2), 0.0);
+          float ndh1 = max(dot(N, H1), 0.0);
+          float ndh2 = max(dot(N, H2), 0.0);
 
-          // Overhead softbox reflection ribbon (gives realistic automotive studio sheen!)
-          vec3 R = reflect(-V, N);
-          float softbox = smoothstep(0.62, 0.92, R.y) * smoothstep(0.55, 0.12, abs(R.z));
-          float aoFloor = smoothstep(-0.05, 0.42, vWorldPos.y);
+          // Ground contact ambient occlusion + wheel-well cavity occlusion
+          float aoFloor = smoothstep(-0.04, 0.55, vWorldPos.y);
+          float ao = mix(0.42, 1.0, aoFloor) * (0.78 + 0.22 * (0.5 + 0.5 * N.y));
 
           if (uSurfaceMode == 1) {
-            // Surface Cp Heatmap (-1.2 -> +1.0)
+            // Surface Cp Heatmap (-1.2 -> +1.0) with crisp iso-pressure contours
             float t = clamp((vCp + 1.2) / 2.2, 0.0, 1.0);
             vec3 base = aeroColormap(t);
-            // Crisp iso-Cp contour lines every 0.20 Cp
             float contour = abs(fract((vCp + 2.0) * 5.0) - 0.5);
-            float line = 1.0 - smoothstep(0.0, 0.045, contour);
-            vec3 lit = base * (0.48 + 0.52 * (0.65 * diff1 + 0.35 * diff2)) + vec3(0.16) * pow(max(dot(N, H1), 0.0), 42.0);
-            lit = mix(lit, lit * 0.62, line * 0.45);
+            float line = 1.0 - smoothstep(0.0, 0.042, contour);
+            vec3 lit = base * (0.44 + 0.56 * (0.65 * ndl1 + 0.35 * ndl2)) + vec3(0.22) * pow(ndh1, 56.0);
+            lit = mix(lit, lit * 0.56, line * 0.50);
             fragColor = vec4(lit, 1.0);
             return;
           }
 
           if (uSurfaceMode == 2) {
-            vec3 col = mix(vec3(0.10, 0.24, 0.36), vec3(0.32, 0.72, 0.96), fresnel);
-            fragColor = vec4(col, 0.26 + 0.35 * fresnel);
+            float fr = pow(1.0 - ndv, 3.0);
+            vec3 col = mix(vec3(0.08, 0.22, 0.36), vec3(0.32, 0.76, 1.0), fr);
+            fragColor = vec4(col, 0.24 + 0.38 * fr);
             return;
           }
 
-          // Studio multi-material car shader
-          vec3 albedo = mix(vec3(0.76, 0.81, 0.88), vec3(0.18, 0.32, 0.52), uLightTheme * 0.35);
-          float rough = 0.16;
-          float specStr = 0.85;
-          float clearcoat = 0.75;
+          // Multi-Material PBR Properties (Linear Color Space)
+          vec3 baseColor = uPaintColor;
+          float metallic = 0.62;
+          float rough = 0.22;
+          float clearcoat = 0.92;
+          float clearcoatRough = 0.06;
 
-          if (abs(vPart - 1.0) < 0.3) { // Tire rubber
-            albedo = vec3(0.09, 0.10, 0.11); rough = 0.78; specStr = 0.15; clearcoat = 0.0;
-          } else if (abs(vPart - 2.0) < 0.3) { // Tinted glass
-            albedo = vec3(0.05, 0.08, 0.12); rough = 0.06; specStr = 1.25; clearcoat = 1.0;
-          } else if (abs(vPart - 3.0) < 0.3) { // Satin carbon aero
-            albedo = vec3(0.13, 0.14, 0.16); rough = 0.38; specStr = 0.45; clearcoat = 0.25;
-          } else if (abs(vPart - 4.0) < 0.3) { // LED headlights / taillights
-            albedo = vWorldPos.x < 0.0 ? vec3(0.95, 0.98, 1.0) : vec3(0.95, 0.16, 0.14);
-            fragColor = vec4(albedo * 1.15, 1.0);
+          if (abs(vPart - 1.0) < 0.3) { // Tire rubber + procedural tread grooves
+            float tread = 0.85 + 0.15 * sin(vLocalPos.z * 95.0) * smoothstep(0.2, 0.85, 1.0 - abs(N.z));
+            baseColor = vec3(0.022, 0.024, 0.028) * tread;
+            metallic = 0.0; rough = 0.78; clearcoat = 0.0;
+          } else if (abs(vPart - 2.0) < 0.3) { // Tinted reflective cockpit glass
+            baseColor = vec3(0.012, 0.022, 0.032);
+            metallic = 0.05; rough = 0.04; clearcoat = 1.0; clearcoatRough = 0.025;
+          } else if (abs(vPart - 3.0) < 0.3) { // 2x2 Twill Woven Carbon Fiber!
+            float u = (vLocalPos.x + vLocalPos.z) * 78.0;
+            float v = (vLocalPos.x - vLocalPos.z + vLocalPos.y) * 78.0;
+            float weave = 0.5 + 0.5 * sin(u) * sin(v);
+            baseColor = mix(vec3(0.022, 0.024, 0.028), vec3(0.068, 0.072, 0.082), weave);
+            metallic = 0.18; rough = mix(0.36, 0.24, weave); clearcoat = 0.45; clearcoatRough = 0.16;
+          } else if (abs(vPart - 4.0) < 0.3) { // Volumetric LED Headlights & Taillight Bar
+            bool isFront = vWorldPos.x < 0.0;
+            vec3 ledCol = isFront ? vec3(2.2, 2.45, 2.8) : vec3(2.6, 0.16, 0.12);
+            float coreGlow = 0.78 + 0.22 * ndv;
+            vec3 mapped = acesFilm(ledCol * coreGlow);
+            fragColor = vec4(pow(mapped, vec3(1.0 / 2.2)), 1.0);
             return;
-          } else if (abs(vPart - 5.0) < 0.3) { // Brushed metallic alloy rim
-            albedo = vec3(0.68, 0.71, 0.76); rough = 0.22; specStr = 1.1; clearcoat = 0.4;
+          } else if (abs(vPart - 5.0) < 0.3) { // Brushed Forged Alloy Rims / Titanium Exhausts
+            baseColor = vec3(0.68, 0.71, 0.76);
+            metallic = 0.94; rough = 0.18; clearcoat = 0.25; clearcoatRough = 0.08;
+          } else if (abs(vPart - 6.0) < 0.3) { // Machined Steel Slotted Brake Disc Rotor
+            float grov = 0.86 + 0.14 * sin(length(vLocalPos.xy) * 140.0);
+            baseColor = vec3(0.42, 0.44, 0.48) * grov;
+            metallic = 0.90; rough = 0.32; clearcoat = 0.0;
+          } else if (abs(vPart - 7.0) < 0.3) { // Performance Crimson Racing Brake Caliper
+            baseColor = vec3(0.75, 0.04, 0.05);
+            metallic = 0.25; rough = 0.26; clearcoat = 0.80; clearcoatRough = 0.09;
+          } else {
+            // Smooth liquid-metallic clearcoat sheen (zero moire)
+            baseColor *= mix(0.92, 1.08, pow(ndv, 0.55));
           }
 
-          float specPow = mix(96.0, 12.0, rough);
-          float spec = pow(max(dot(N, H1), 0.0), specPow) * 0.85 + pow(max(dot(N, H2), 0.0), specPow * 0.8) * 0.55;
-          vec3 ambCol = mix(vec3(0.12, 0.15, 0.20), vec3(0.45, 0.50, 0.58), uLightTheme);
-          vec3 skyCol = mix(vec3(0.28, 0.34, 0.44), vec3(0.85, 0.90, 0.96), uLightTheme);
-          vec3 col = albedo * (mix(ambCol, skyCol, hemi) * 0.72 + vec3(0.98, 0.99, 1.0) * (diff1 * 0.68 + diff2 * 0.36));
-          col += vec3(0.95, 0.98, 1.0) * (spec * specStr + softbox * clearcoat * (0.28 + 0.55 * fresnel));
-          col *= (0.72 + 0.28 * aoFloor);
-          // Subtle rim edge highlight
-          col += vec3(0.32, 0.58, 0.92) * fresnel * clearcoat * 0.22;
+          // PBR Fresnel (Schlick)
+          vec3 F0 = mix(vec3(0.04), baseColor, metallic);
+          vec3 F = F0 + (1.0 - F0) * pow(1.0 - ndv, 5.0);
+          vec3 kD = (1.0 - F) * (1.0 - metallic);
+
+          // Direct GGX Lighting
+          float spec1 = D_GGX(ndh1, rough) * 0.22 * ndl1;
+          float spec2 = D_GGX(ndh2, rough) * 0.14 * ndl2;
+          vec3 directDiff = (kD * baseColor / 3.14159) * (ndl1 * 1.45 + ndl2 * 0.85);
+          vec3 directSpec = F * (spec1 * 1.6 + spec2 * 1.1);
+
+          // Indirect Studio IBL Diffuse + Specular
+          vec3 envDiff = sampleStudioEnv(N, 0.95, uLightTheme);
+          vec3 envSpec = sampleStudioEnv(R, rough, uLightTheme);
+          vec3 indirect = kD * baseColor * envDiff * 0.65 + F * envSpec * mix(0.95, 0.35, rough);
+
+          // Dual-Layer Automotive Clearcoat
+          float Fcc = 0.04 + 0.96 * pow(1.0 - ndv, 5.0);
+          vec3 ccEnv = sampleStudioEnv(R, clearcoatRough, uLightTheme);
+          float ccDirect = (D_GGX(ndh1, clearcoatRough) * ndl1 * 0.16 + D_GGX(ndh2, clearcoatRough) * ndl2 * 0.09);
+          vec3 ccCol = (ccEnv * Fcc + vec3(ccDirect)) * clearcoat;
+
+          vec3 col = (directDiff + directSpec + indirect) * ao + ccCol * mix(0.55, 1.0, ao);
+
+          // ACES Filmic Tone Mapping + Gamma Correction
+          col = acesFilm(col * mix(1.08, 0.96, uLightTheme));
+          col = pow(col, vec3(1.0 / 2.2));
           fragColor = vec4(col, 1.0);
         }`
       );
 
-      // 2. Wireframe Line Shader
+      // 2. Wireframe & Architectural Accent Line Shader
       this.wireProg = this.createProgram(
         `#version 300 es
         precision highp float;
@@ -2448,7 +2604,7 @@
         void main() { fragColor = uColor; }`
       );
 
-      // 3. Architectural Wind Tunnel Floor & Rolling-Road Shader
+      // 3. Reflective Epoxy Wind Tunnel Floor & Rolling-Road Shader
       this.tunnelProg = this.createProgram(
         `#version 300 es
         precision highp float;
@@ -2462,6 +2618,7 @@
         `#version 300 es
         precision highp float;
         in vec3 vPos;
+        uniform vec3 uCamPos;
         uniform float uBeltOffset;
         uniform float uYawRad;
         uniform float uLightTheme;
@@ -2469,63 +2626,128 @@
         out vec4 fragColor;
         void main() {
           vec2 p = vPos.xz;
-          float dist = length(p * vec2(0.55, 0.85));
+          float dist = length(p * vec2(0.52, 0.82));
+          vec3 V = normalize(uCamPos - vPos);
+          float fresnel = pow(1.0 - max(V.y, 0.0), 3.2);
 
-          vec3 baseDark = vec3(0.085, 0.10, 0.13);
-          vec3 baseLight = vec3(0.87, 0.89, 0.93);
+          vec3 baseDark = vec3(0.055, 0.068, 0.092);
+          vec3 baseLight = vec3(0.86, 0.89, 0.93);
           vec3 col = mix(baseDark, baseLight, uLightTheme);
 
-          // Metric 1m engineering grid
-          vec2 g = abs(fract(p - 0.5) - 0.5) / fwidth(p);
-          float gridLine = 1.0 - min(min(g.x, g.y), 1.0);
-          vec3 gridCol = mix(vec3(0.18, 0.23, 0.30), vec3(0.74, 0.78, 0.84), uLightTheme);
-          col = mix(col, gridCol, gridLine * 0.32 * smoothstep(10.0, 2.5, dist));
+          // Glossy epoxy reflection of the 3 overhead studio LED softbox light bars
+          vec3 R = reflect(-V, vec3(0.0, 1.0, 0.0));
+          float tCeil = (4.15 - vPos.y) / max(R.y, 0.05);
+          vec2 hitCeil = vPos.xz + R.xz * tCeil;
+          float barC = smoothstep(0.38, 0.04, abs(hitCeil.y));
+          float barL = smoothstep(0.38, 0.04, abs(hitCeil.y - 1.35));
+          float barR = smoothstep(0.38, 0.04, abs(hitCeil.y + 1.35));
+          float barX = smoothstep(4.6, 3.6, abs(hitCeil.x - 0.6));
+          float ceilRefl = max(barC, max(barL, barR)) * barX * smoothstep(10.5, 2.0, dist);
+          col += mix(vec3(0.14, 0.19, 0.27), vec3(0.18, 0.20, 0.24), uLightTheme) * ceilRefl * (0.25 + 0.65 * fresnel);
 
-          // Yaw Turntable Disk (radius 2.75m)
+          // Precision metric 1m engineering grid + fine 0.5m sub-grid
+          vec2 g1 = abs(fract(p - 0.5) - 0.5) / fwidth(p);
+          float gridMajor = 1.0 - min(min(g1.x, g1.y), 1.0);
+          vec2 g2 = abs(fract(p * 2.0 - 0.5) - 0.5) / fwidth(p * 2.0);
+          float gridMinor = 1.0 - min(min(g2.x, g2.y), 1.0);
+          vec3 gridCol = mix(vec3(0.18, 0.25, 0.35), vec3(0.70, 0.75, 0.82), uLightTheme);
+          col = mix(col, gridCol, (gridMajor * 0.34 + gridMinor * 0.11) * smoothstep(10.5, 2.2, dist));
+
+          // Laser-Etched Yaw Turntable Disk (radius 2.75m)
           float r = length(p);
-          float ring = smoothstep(0.045, 0.012, abs(r - 2.72));
-          // Rotating degree ticks on turntable perimeter
+          float outerRing = smoothstep(0.042, 0.010, abs(r - 2.74));
+          float innerRing = smoothstep(0.022, 0.006, abs(r - 2.54));
           float ang = atan(p.y, p.x) + uYawRad;
-          float tick = smoothstep(0.92, 0.99, cos(ang * 36.0)) * smoothstep(2.58, 2.63, r) * smoothstep(2.74, 2.70, r);
-          col = mix(col, mix(vec3(0.28, 0.48, 0.72), vec3(0.22, 0.45, 0.78), uLightTheme), (ring * 0.65 + tick * 0.55));
+          float tickFine = smoothstep(0.92, 0.99, cos(ang * 36.0)) * smoothstep(2.56, 2.60, r) * smoothstep(2.74, 2.70, r);
+          float tickMajor = smoothstep(0.96, 0.995, cos(ang * 12.0)) * smoothstep(2.50, 2.55, r) * smoothstep(2.74, 2.70, r);
+          vec3 accentCol = mix(vec3(0.24, 0.64, 0.98), vec3(0.12, 0.45, 0.86), uLightTheme);
+          col = mix(col, accentCol, clamp(outerRing * 0.72 + innerRing * 0.25 + tickFine * 0.45 + tickMajor * 0.75, 0.0, 0.9));
 
-          // Rolling-Road Conveyor Belt under car
-          if (abs(p.y) < 1.18 && p.x > -3.1 && p.x < 3.4) {
-            vec3 beltCol = mix(vec3(0.055, 0.065, 0.085), vec3(0.76, 0.79, 0.84), uLightTheme);
-            // Moving belt tread bands
-            float strip = smoothstep(0.86, 0.96, sin((p.x - uBeltOffset) * 14.0));
-            // Subtle center guide line
-            float centerLine = smoothstep(0.025, 0.008, abs(p.y));
-            beltCol += mix(vec3(0.035), vec3(-0.04), uLightTheme) * strip;
-            beltCol = mix(beltCol, vec3(0.22, 0.60, 0.95), centerLine * 0.45);
-            float edge = smoothstep(1.18, 1.13, abs(p.y)) * smoothstep(-3.1, -3.02, p.x) * smoothstep(3.4, 3.32, p.x);
-            col = mix(col, beltCol, edge * 0.92);
+          // Rolling-Road Conveyor Belt + Metallic Steel End Rollers
+          if (abs(p.y) < 1.20 && p.x > -3.18 && p.x < 3.48) {
+            vec3 beltCol = mix(vec3(0.042, 0.050, 0.068), vec3(0.74, 0.78, 0.83), uLightTheme);
+            float strip = smoothstep(0.84, 0.96, sin((p.x - uBeltOffset) * 14.0));
+            float centerLine = smoothstep(0.022, 0.006, abs(p.y));
+            float sideRail = smoothstep(1.08, 1.15, abs(p.y));
+            beltCol += mix(vec3(0.032), vec3(-0.045), uLightTheme) * strip;
+            beltCol = mix(beltCol, accentCol, centerLine * 0.50);
+            beltCol = mix(beltCol, mix(vec3(0.20, 0.24, 0.30), vec3(0.55, 0.60, 0.68), uLightTheme), sideRail * 0.65);
+            // Brushed metal rollers at belt ends
+            float roller = smoothstep(0.10, 0.02, abs(p.x + 3.10)) + smoothstep(0.10, 0.02, abs(p.x - 3.40));
+            beltCol = mix(beltCol, mix(vec3(0.32, 0.36, 0.44), vec3(0.62, 0.66, 0.72), uLightTheme), clamp(roller, 0.0, 0.85));
+            float edge = smoothstep(1.20, 1.14, abs(p.y)) * smoothstep(-3.18, -3.10, p.x) * smoothstep(3.48, 3.40, p.x);
+            col = mix(col, beltCol, edge * 0.95);
           }
 
-          // Wind direction chevrons at inlet (x ~ -3.8)
-          if (p.x > -4.3 && p.x < -3.3 && abs(p.y) < 1.8) {
-            float chev = abs(fract((p.x - abs(p.y) * 0.55 - uBeltOffset * 0.6) * 1.4) - 0.5);
-            float arrow = smoothstep(0.08, 0.02, chev) * smoothstep(1.8, 1.2, abs(p.y));
-            col = mix(col, vec3(0.18, 0.68, 0.96), arrow * 0.25);
+          // Animated Wind Direction Chevrons at Inlet
+          if (p.x > -4.35 && p.x < -3.30 && abs(p.y) < 1.85) {
+            float chev = abs(fract((p.x - abs(p.y) * 0.55 - uBeltOffset * 0.65) * 1.4) - 0.5);
+            float arrow = smoothstep(0.08, 0.02, chev) * smoothstep(1.85, 1.15, abs(p.y));
+            col = mix(col, accentCol, arrow * 0.32);
           }
 
-          // Soft ambient occlusion contact shadow directly under vehicle
+          // Deep Multi-Layered Vehicle Contact AO Shadow
           vec2 boxCenter = vec2(0.5 * (uShadowBox.x + uShadowBox.y), 0.5 * (uShadowBox.z + uShadowBox.w));
           vec2 boxHalf = max(vec2(0.45), vec2(0.5 * (uShadowBox.y - uShadowBox.x), 0.5 * (uShadowBox.w - uShadowBox.z)));
-          vec2 dBox = max(abs(p - boxCenter) - boxHalf * 0.82, 0.0);
+          vec2 dBox = max(abs(p - boxCenter) - boxHalf * 0.80, 0.0);
           float shDist = length(dBox);
-          float shadow = 1.0 - 0.58 * exp(-shDist * shDist * 2.8);
-          col *= shadow;
+          float softShadow = 1.0 - 0.66 * exp(-shDist * shDist * 2.4);
+          float coreShadow = 1.0 - 0.38 * exp(-shDist * shDist * 14.0);
+          col *= softShadow * coreShadow;
 
-          // Studio vignette fade into horizon
-          vec3 bg = mix(vec3(0.055, 0.07, 0.095), vec3(0.92, 0.94, 0.965), uLightTheme);
-          float fade = smoothstep(5.5, 13.5, dist);
+          // Studio Horizon Vignette Fade
+          vec3 bg = mix(vec3(0.042, 0.054, 0.078), vec3(0.91, 0.935, 0.965), uLightTheme);
+          float fade = smoothstep(5.8, 13.8, dist);
           col = mix(col, bg, fade);
           fragColor = vec4(col, 1.0);
         }`
       );
 
-      // 4. 3D Volumetric Smoke Streamline Ribbon Shader
+      // 4. 3D Architectural Wind-Tunnel Chamber Shader (Overhead Glowing LED Softboxes + Inlet Honeycomb Nozzle)
+      this.chamberProg = this.createProgram(
+        `#version 300 es
+        precision highp float;
+        layout(location=0) in vec3 aPos;
+        layout(location=1) in vec2 aUv;
+        layout(location=2) in float aKind; // 0=overhead LED strip, 1=inlet honeycomb screen
+        uniform mat4 uViewProj;
+        out vec2 vUv;
+        flat out float vKind;
+        void main() {
+          vUv = aUv;
+          vKind = aKind;
+          gl_Position = uViewProj * vec4(aPos, 1.0);
+        }`,
+        `#version 300 es
+        precision highp float;
+        in vec2 vUv;
+        flat in float vKind;
+        uniform float uLightTheme;
+        out vec4 fragColor;
+        void main() {
+          if (vKind < 0.5) {
+            // Glowing overhead wind-tunnel LED softbox diffuser panel
+            float edge = smoothstep(0.0, 0.14, vUv.x) * smoothstep(1.0, 0.86, vUv.x) *
+                         smoothstep(0.0, 0.20, vUv.y) * smoothstep(1.0, 0.80, vUv.y);
+            vec3 col = mix(vec3(0.75, 0.86, 1.0), vec3(1.0, 1.0, 1.0), edge);
+            fragColor = vec4(col, mix(0.62, 0.85, uLightTheme) * (0.25 + 0.75 * edge));
+            return;
+          }
+          // Backlit Wind-Tunnel Inlet Honeycomb Flow-Straightener Screen
+          vec2 p = vUv * vec2(26.0, 18.0);
+          vec2 g1 = abs(fract(vec2(p.x + p.y * 0.5, p.y)) - 0.5);
+          vec2 g2 = abs(fract(vec2(p.x - p.y * 0.5, p.y)) - 0.5);
+          float mesh = smoothstep(0.42, 0.49, max(g1.x, g1.y)) + smoothstep(0.42, 0.49, max(g2.x, g2.y));
+          float frame = 1.0 - smoothstep(0.0, 0.05, min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y)));
+          float centerGlow = exp(-dot((vUv - 0.5) * 1.8, (vUv - 0.5) * 1.8));
+          vec3 col = mix(vec3(0.10, 0.24, 0.38), vec3(0.24, 0.52, 0.82), uLightTheme) * (0.45 + 0.55 * centerGlow);
+          col += vec3(0.24, 0.68, 0.98) * (mesh * 0.35 + frame * 0.55);
+          float alpha = clamp(0.10 + mesh * 0.14 + frame * 0.38, 0.0, 0.52);
+          fragColor = vec4(col, alpha);
+        }`
+      );
+
+      // 5. 3D Volumetric Multi-Harmonic Smoke Streamline Ribbon Shader
       this.ribbonProg = this.createProgram(
         `#version 300 es
         precision highp float;
@@ -2541,8 +2763,8 @@
         void main() {
           vec3 viewDir = normalize(uCamPos - aPos);
           vec3 right = normalize(cross(aTan, viewDir));
-          // Slightly widen ribbons in turbulent wake for natural smoke dispersion!
-          float w = uWidth * (1.0 + clamp(aMeta.w * 0.85, 0.0, 1.1));
+          // Natural smoke plume expansion inside turbulent rear wake
+          float w = uWidth * (1.0 + clamp(aMeta.w * 1.15, 0.0, 1.45));
           vec3 worldPos = aPos + right * (aSide * w);
           vSide = aSide;
           vMeta = aMeta;
@@ -2563,27 +2785,30 @@
           float cp = vMeta.z;
           float tb = vMeta.w;
 
-          // Soft cross-ribbon Gaussian profile
-          float core = exp(-vSide * vSide * 3.4);
-          // Animated smoke pulses traveling smoothly downstream
-          float pulse = 0.62 + 0.38 * sin(arc * 2.1 - uTime * 7.5);
-          // Fade ends smoothly
-          float fadeIn = smoothstep(0.0, 0.65, arc);
-          float fadeOut = 1.0 - smoothstep(10.0, 12.0, arc);
+          // Bright laminar core + soft volumetric halo
+          float core = exp(-vSide * vSide * 7.5);
+          float halo = exp(-vSide * vSide * 2.2);
+          // Multi-harmonic travelling smoke filaments
+          float p1 = 0.65 + 0.35 * sin(arc * 2.2 - uTime * 7.8);
+          float p2 = 0.80 + 0.20 * sin(arc * 5.6 - uTime * 13.5 + vSide * 2.4);
+          float pulse = p1 * p2;
+          float fadeIn = smoothstep(0.0, 0.55, arc);
+          float fadeOut = 1.0 - smoothstep(9.8, 12.0, arc);
 
           vec3 col;
           if (uColorMode == 0) col = aeroColormap(clamp(spd / 1.50, 0.0, 1.0));
           else if (uColorMode == 1) col = aeroColormap(clamp((cp + 1.2) / 2.2, 0.0, 1.0));
           else if (uColorMode == 2) col = aeroColormap(clamp(tb / 1.15, 0.0, 1.0));
-          else col = mix(vec3(0.92, 0.96, 1.0), vec3(0.18, 0.30, 0.45), uLightTheme * 0.72);
+          else col = mix(vec3(0.92, 0.96, 1.0), vec3(0.16, 0.28, 0.44), uLightTheme * 0.72);
 
-          // Slightly diffuse alpha in wake turbulence
-          float alpha = core * pulse * fadeIn * fadeOut * mix(0.76, 0.45, clamp(tb * 0.6, 0.0, 0.7));
+          // Hot luminous core highlight for volumetric depth
+          col = mix(col, col * 1.38 + vec3(0.10), core * 0.55 * (1.0 - uLightTheme * 0.6));
+          float alpha = (core * 0.62 + halo * 0.38) * pulse * fadeIn * fadeOut * mix(0.84, 0.48, clamp(tb * 0.58, 0.0, 0.7));
           fragColor = vec4(col, alpha);
         }`
       );
 
-      // 5. 3D Airflow Particle Streak Shader
+      // 6. 3D Airflow Particle Streak Shader
       this.particleProg = this.createProgram(
         `#version 300 es
         precision highp float;
@@ -2607,13 +2832,13 @@
           if (uColorMode == 0) col = aeroColormap(clamp(vData.x / 1.50, 0.0, 1.0));
           else if (uColorMode == 1) col = aeroColormap(clamp((vData.y + 1.2) / 2.2, 0.0, 1.0));
           else if (uColorMode == 2) col = aeroColormap(clamp(vData.z / 1.15, 0.0, 1.0));
-          else col = mix(vec3(0.90, 0.95, 1.0), vec3(0.22, 0.34, 0.48), uLightTheme * 0.75);
-          float alpha = mix(0.08, 0.78, vData.w);
-          fragColor = vec4(col, alpha);
+          else col = mix(vec3(0.90, 0.95, 1.0), vec3(0.20, 0.32, 0.48), uLightTheme * 0.75);
+          float alpha = mix(0.05, 0.82, vData.w);
+          fragColor = vec4(col * mix(1.18, 0.95, uLightTheme), alpha);
         }`
       );
 
-      // 6. 2D Interactive Flow Cut-Plane Slice Shader
+      // 7. 2D Interactive Flow Cut-Plane Slice Shader
       this.sliceProg = this.createProgram(
         `#version 300 es
         precision highp float;
@@ -2633,7 +2858,6 @@
         void main() {
           vec4 c = texture(uTex, vUv);
           if (c.a < 0.02) discard;
-          // Soft border fade
           float edge = smoothstep(0.0, 0.04, vUv.x) * smoothstep(1.0, 0.96, vUv.x) *
                        smoothstep(0.0, 0.04, vUv.y) * smoothstep(1.0, 0.96, vUv.y);
           fragColor = vec4(c.rgb, c.a * edge);
@@ -2645,8 +2869,8 @@
       const gl = this.gl;
       // Large floor plane at y = 0
       const verts = new Float32Array([
-        -15, 0, -15,  15, 0, -15,  15, 0, 15,
-        -15, 0, -15,  15, 0, 15,  -15, 0, 15,
+        -16, 0, -16,  16, 0, -16,  16, 0, 16,
+        -16, 0, -16,  16, 0, 16,  -16, 0, 16,
       ]);
       this.floorVao = gl.createVertexArray();
       gl.bindVertexArray(this.floorVao);
@@ -2656,11 +2880,10 @@
       gl.enableVertexAttribArray(0);
       gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
 
-      // Subtle architectural wind-tunnel test chamber rails & overhead softbox frames
+      // Architectural wind-tunnel test chamber rails & smoke-rake wand frame
       const cage = [];
-      const x0 = -4.4, x1 = 7.6, y0 = 0.01, y1 = 4.2, z0 = -3.0, z1 = 3.0;
+      const x0 = -4.5, x1 = 7.6, y0 = 0.01, y1 = 4.2, z0 = -3.0, z1 = 3.0;
       const seg = (a, b) => cage.push(...a, ...b);
-      // Outer chamber frame
       seg([x0, y0, z0], [x1, y0, z0]); seg([x0, y0, z1], [x1, y0, z1]);
       seg([x0, y1, z0], [x1, y1, z0]); seg([x0, y1, z1], [x1, y1, z1]);
       for (const x of [x0, -1.4, 1.6, 4.6, x1]) {
@@ -2668,13 +2891,11 @@
         seg([x, y0, z1], [x, y1, z1]);
         seg([x, y1, z0], [x, y1, z1]);
       }
-      // Overhead softbox light strip outlines
-      for (const zs of [-1.2, 1.2]) {
-        seg([-3.2, y1 - 0.04, zs - 0.28], [4.2, y1 - 0.04, zs - 0.28]);
-        seg([-3.2, y1 - 0.04, zs + 0.28], [4.2, y1 - 0.04, zs + 0.28]);
-        seg([-3.2, y1 - 0.04, zs - 0.28], [-3.2, y1 - 0.04, zs + 0.28]);
-        seg([4.2, y1 - 0.04, zs - 0.28], [4.2, y1 - 0.04, zs + 0.28]);
-      }
+      // Smoke rake vertical strut at inlet (x = -4.18)
+      seg([-4.18, 0.02, 0], [-4.18, 2.4, 0]);
+      seg([-4.18, 0.02, -0.52], [-4.18, 2.1, -0.52]);
+      seg([-4.18, 0.02, 0.52], [-4.18, 2.1, 0.52]);
+
       this.cageCount = cage.length / 3;
       this.cageVao = gl.createVertexArray();
       gl.bindVertexArray(this.cageVao);
@@ -2683,6 +2904,33 @@
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cage), gl.STATIC_DRAW);
       gl.enableVertexAttribArray(0);
       gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      // Architectural Glowing Overhead LED Softbox Strips (3 linear bars) + Inlet Honeycomb Screen
+      const chPos = [], chUv = [], chKind = [];
+      const addPanel = (p0, p1, p2, p3, kind) => {
+        chPos.push(...p0, ...p1, ...p2, ...p0, ...p2, ...p3);
+        chUv.push(0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1);
+        for (let k = 0; k < 6; k++) chKind.push(kind);
+      };
+      for (const zs of [-1.35, 0.0, 1.35]) {
+        addPanel([-3.4, y1 - 0.03, zs - 0.24], [4.6, y1 - 0.03, zs - 0.24], [4.6, y1 - 0.03, zs + 0.24], [-3.4, y1 - 0.03, zs + 0.24], 0);
+      }
+      // Backlit Inlet Honeycomb Screen at x = -4.50
+      addPanel([x0, 0.04, z0], [x0, 0.04, z1], [x0, y1, z1], [x0, y1, z0], 1);
+
+      this.chamberVertCount = chPos.length / 3;
+      this.chamberVao = gl.createVertexArray();
+      gl.bindVertexArray(this.chamberVao);
+      const mkChBuf = (loc, arr, sz) => {
+        const b = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, b);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, sz, gl.FLOAT, false, 0, 0);
+      };
+      mkChBuf(0, chPos, 3);
+      mkChBuf(1, chUv, 2);
+      mkChBuf(2, chKind, 1);
       gl.bindVertexArray(null);
     }
 
@@ -2962,8 +3210,8 @@
       gl.viewport(0, 0, cw, ch);
 
       const lt = this.isLightTheme ? 1.0 : 0.0;
-      if (this.isLightTheme) gl.clearColor(0.92, 0.94, 0.965, 1.0);
-      else gl.clearColor(0.055, 0.07, 0.095, 1.0);
+      if (this.isLightTheme) gl.clearColor(0.91, 0.935, 0.965, 1.0);
+      else gl.clearColor(0.042, 0.054, 0.078, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
       const proj = Mat4.perspective((42 * Math.PI) / 180, cw / ch, 0.1, 80.0);
@@ -2974,9 +3222,10 @@
       gl.depthMask(true);
       gl.disable(gl.BLEND);
 
-      // 1. Floor + Rolling Road
+      // 1. Reflective Epoxy Floor + Rolling Road + Yaw Turntable
       gl.useProgram(this.tunnelProg);
       gl.uniformMatrix4fv(gl.getUniformLocation(this.tunnelProg, 'uViewProj'), false, viewProj);
+      gl.uniform3fv(gl.getUniformLocation(this.tunnelProg, 'uCamPos'), camEye);
       gl.uniform1f(gl.getUniformLocation(this.tunnelProg, 'uBeltOffset'), beltOffset);
       gl.uniform1f(gl.getUniformLocation(this.tunnelProg, 'uYawRad'), (state.yawDeg * Math.PI) / 180);
       gl.uniform1f(gl.getUniformLocation(this.tunnelProg, 'uLightTheme'), lt);
@@ -2985,22 +3234,24 @@
       gl.bindVertexArray(this.floorVao);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      // 2. Wind Tunnel Architectural Frame Lines
+      // 2. Wind Tunnel Architectural Frame Lines + Smoke Rake Wand
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.useProgram(this.wireProg);
       gl.uniformMatrix4fv(gl.getUniformLocation(this.wireProg, 'uViewProj'), false, viewProj);
       gl.uniform4f(gl.getUniformLocation(this.wireProg, 'uColor'),
-        this.isLightTheme ? 0.35 : 0.45, this.isLightTheme ? 0.42 : 0.58, this.isLightTheme ? 0.52 : 0.72, 0.20);
+        this.isLightTheme ? 0.32 : 0.42, this.isLightTheme ? 0.40 : 0.56, this.isLightTheme ? 0.52 : 0.72, 0.22);
       gl.bindVertexArray(this.cageVao);
       gl.drawArrays(gl.LINES, 0, this.cageCount);
 
-      // 3. 3D Vehicle / Uploaded Model
+      // 3. 3D Vehicle / Uploaded Model (GGX Clearcoat PBR)
       if (this.modelVao && this.modelIndexCount > 0) {
         const surfaceMode = state.surfaceMode === 'studio' ? 0 : state.surfaceMode === 'pressure' ? 1 : 2;
+        const paintRGB = PAINT_PALETTE[state.paintColor] || PAINT_PALETTE.silver;
         gl.useProgram(this.modelProg);
         gl.uniformMatrix4fv(gl.getUniformLocation(this.modelProg, 'uViewProj'), false, viewProj);
         gl.uniform3fv(gl.getUniformLocation(this.modelProg, 'uCamPos'), camEye);
+        gl.uniform3fv(gl.getUniformLocation(this.modelProg, 'uPaintColor'), paintRGB);
         gl.uniform1i(gl.getUniformLocation(this.modelProg, 'uSurfaceMode'), surfaceMode);
         gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uLightTheme'), lt);
         gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uWheelSpin'), wheelSpin);
@@ -3029,10 +3280,18 @@
         }
       }
 
-      // 4. Translucent Flow Visualizations (Cut Plane, Streamlines, Particles)
+      // 4. Translucent Architectural Chamber (Overhead Softboxes + Inlet Honeycomb) & Flow Visualizations
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.depthMask(false);
+
+      if (this.chamberVao && this.chamberVertCount > 0) {
+        gl.useProgram(this.chamberProg);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.chamberProg, 'uViewProj'), false, viewProj);
+        gl.uniform1f(gl.getUniformLocation(this.chamberProg, 'uLightTheme'), lt);
+        gl.bindVertexArray(this.chamberVao);
+        gl.drawArrays(gl.TRIANGLES, 0, this.chamberVertCount);
+      }
 
       // 4a. 2D Cut Plane Slice
       if (state.sliceMode !== 'off') {
@@ -3078,6 +3337,14 @@
   /* ============================================================================
    * 9. APPLICATION STATE, CAMERA, UI BINDINGS & MAIN LOOP
    * ========================================================================== */
+  const PAINT_PALETTE = {
+    silver:   [0.52, 0.57, 0.65],
+    red:      [0.62, 0.035, 0.045],
+    blue:     [0.04, 0.22, 0.68],
+    graphite: [0.09, 0.11, 0.14],
+    green:    [0.025, 0.28, 0.16],
+  };
+
   const state = {
     preset: 'sportscar',
     isPreset: true,
@@ -3088,6 +3355,7 @@
     rideHeight: 0,
     rollingRoad: true,
     surfaceMode: 'studio',     // studio | pressure | wireframe
+    paintColor: 'silver',      // silver | red | blue | graphite | green
     colorMap: 'velocity',      // velocity | pressure | turbulence | smoke
     showStreamlines: true,
     rakeMode: 'vertical',      // vertical | horizontal | grid
@@ -3608,6 +3876,17 @@
       state.surfaceMode = btn.dataset.surface;
       syncButtonGroup('.surface-btn', state.surfaceMode, 'surface');
       updateLegendAndTelemetry();
+    });
+  });
+  document.querySelectorAll('.paint-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.paintColor = btn.dataset.paint;
+      syncButtonGroup('.paint-btn', state.paintColor, 'paint');
+      if (state.surfaceMode !== 'studio') {
+        state.surfaceMode = 'studio';
+        syncButtonGroup('.surface-btn', 'studio', 'surface');
+        updateLegendAndTelemetry();
+      }
     });
   });
   document.querySelectorAll('.colormap-btn').forEach(btn => {

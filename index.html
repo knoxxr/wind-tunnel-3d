@@ -940,7 +940,136 @@
         this.addBox(xCenter + chord * 0.1, yCenter - epH * 0.08, hz + 0.014, chord * 1.18, epH, 0.022, partId);
       }
     }
-    build(name, hasWheels = false, wheelMeta = null) {
+    addTube(p0, p1, r0, r1, segs = 14, partId = 5, capEnds = true) {
+      const dx = p1[0] - p0[0], dy = p1[1] - p0[1], dz = p1[2] - p0[2];
+      const len = Math.hypot(dx, dy, dz);
+      if (len < 1e-6) return;
+      const ax = dx / len, ay = dy / len, az = dz / len;
+      // Pick non-parallel helper axis
+      let ux = 0, uy = 1, uz = 0;
+      if (Math.abs(ay) > 0.92) { ux = 1; uy = 0; uz = 0; }
+      // b = normalize(a x u)
+      let bx = ay * uz - az * uy, by = az * ux - ax * uz, bz = ax * uy - ay * ux;
+      const bl = Math.hypot(bx, by, bz) || 1;
+      bx /= bl; by /= bl; bz /= bl;
+      // c = b x a
+      const cx = by * az - bz * ay, cy = bz * ax - bx * az, cz = bx * ay - by * ax;
+      const ring0 = [], ring1 = [];
+      for (let i = 0; i <= segs; i++) {
+        const ang = (i / segs) * Math.PI * 2;
+        const ca = Math.cos(ang), sa = Math.sin(ang);
+        const nx = bx * ca + cx * sa, ny = by * ca + cy * sa, nz = bz * ca + cz * sa;
+        ring0.push(this.addVertex(p0[0] + nx * r0, p0[1] + ny * r0, p0[2] + nz * r0, nx, ny, nz, partId));
+        ring1.push(this.addVertex(p1[0] + nx * r1, p1[1] + ny * r1, p1[2] + nz * r1, nx, ny, nz, partId));
+      }
+      for (let i = 0; i < segs; i++) {
+        this.addQuad(ring0[i], ring1[i], ring1[i + 1], ring0[i + 1]);
+      }
+      if (capEnds) {
+        const c0 = this.addVertex(p0[0], p0[1], p0[2], -ax, -ay, -az, partId);
+        const c1 = this.addVertex(p1[0], p1[1], p1[2], ax, ay, az, partId);
+        const cap0 = [], cap1 = [];
+        for (let i = 0; i <= segs; i++) {
+          const ang = (i / segs) * Math.PI * 2;
+          const ca = Math.cos(ang), sa = Math.sin(ang);
+          const nx = bx * ca + cx * sa, ny = by * ca + cy * sa, nz = bz * ca + cz * sa;
+          cap0.push(this.addVertex(p0[0] + nx * r0, p0[1] + ny * r0, p0[2] + nz * r0, -ax, -ay, -az, partId));
+          cap1.push(this.addVertex(p1[0] + nx * r1, p1[1] + ny * r1, p1[2] + nz * r1, ax, ay, az, partId));
+        }
+        for (let i = 0; i < segs; i++) {
+          this.addTri(c0, cap0[i + 1], cap0[i]);
+          this.addTri(c1, cap1[i], cap1[i + 1]);
+        }
+      }
+    }
+    addArchFlare(cx, cy, cz, rIn, rOut, depth, side, partId = 10, startAng = -0.18, endAng = Math.PI + 0.18) {
+      // Sculpted semicircular wheel-arch fender lip + inner dark wheel-well liner
+      const segs = 24;
+      const zOut = cz + side * (depth * 0.5);
+      const zIn = cz - side * (depth * 0.5);
+      const rOuter = [], rInner = [], rBack = [];
+      for (let i = 0; i <= segs; i++) {
+        const a = startAng + (i / segs) * (endAng - startAng);
+        const ca = Math.cos(a), sa = Math.sin(a);
+        const xo = cx + ca * rOut, yo = cy + sa * rOut;
+        const xi = cx + ca * rIn, yi = cy + sa * rIn;
+        rOuter.push(this.addVertex(xo, yo, zOut - side * 0.015, ca * 0.35, sa * 0.35, side * 0.94, partId));
+        rInner.push(this.addVertex(xi, yi, zOut, -ca * 0.3, -sa * 0.3, side * 0.95, partId));
+        rBack.push(this.addVertex(xi, yi, zIn, -ca, -sa, 0, 10));
+      }
+      for (let i = 0; i < segs; i++) {
+        if (side > 0) {
+          this.addQuad(rOuter[i], rOuter[i + 1], rInner[i + 1], rInner[i]);
+          this.addQuad(rInner[i], rInner[i + 1], rBack[i + 1], rBack[i]);
+        } else {
+          this.addQuad(rInner[i], rInner[i + 1], rOuter[i + 1], rOuter[i]);
+          this.addQuad(rBack[i], rBack[i + 1], rInner[i + 1], rInner[i]);
+        }
+      }
+    }
+    addHeadlightUnit(x, y, z, lenX, hY, wZ, side, style = 'gt') {
+      // Recessed gloss piano-black smoked projector housing + crystal lenses + razor-thin LED DRL blade
+      const yaw = side * (style === 'gt' ? 0.24 : 0.14);
+      const pitch = style === 'gt' ? -0.22 : -0.06;
+      // Smoked piano-black bezel housing (partId = 8)
+      this.addBox(x, y, z, lenX, hY, wZ, 8, pitch, yaw);
+      // Satin-chrome upper eyebrow trim (partId = 9)
+      this.addBox(x - 0.01, y + hY * 0.48, z, lenX * 0.94, 0.009, wZ * 0.96, 9, pitch, yaw);
+      // Twin recessed LED projector bowls (satin-chrome ring + crisp bright lens)
+      const pOff1 = -wZ * 0.22 * side;
+      const pOff2 = wZ * 0.20 * side;
+      const lensR = Math.min(hY * 0.30, 0.032);
+      for (const zOff of [pOff1, pOff2]) {
+        const px = x - lenX * 0.42;
+        const pz = z + zOff;
+        this.addTube([px + 0.03, y, pz], [px - 0.012, y, pz], lensR * 1.15, lensR * 1.15, 12, 9, true);
+        this.addTube([px - 0.008, y, pz], [px - 0.022, y, pz], lensR * 0.72, lensR * 0.65, 12, 4, true);
+      }
+      if (style === 'gt') {
+        // Razor-thin lower L-shaped signature DRL LED blade
+        this.addBox(x - 0.028, y - hY * 0.34, z, lenX * 0.92, 0.014, wZ * 0.96, 4, pitch, yaw);
+        this.addBox(x - lenX * 0.34, y, z + side * (wZ * 0.44), 0.028, hY * 0.72, 0.016, 4, pitch, yaw);
+      } else {
+        // Dual parallel flagship SUV horizontal LED DRL signature blades
+        this.addBox(x - lenX * 0.42, y + hY * 0.26, z, 0.032, 0.016, wZ * 0.96, 4, pitch, yaw);
+        this.addBox(x - lenX * 0.42, y - hY * 0.26, z, 0.032, 0.016, wZ * 0.96, 4, pitch, yaw);
+      }
+    }
+    addTaillightBar(x, y, halfW, hY, style = 'gt') {
+      // Recessed gloss piano-black tail lens panel + razor-thin crimson OLED light blade + side signatures
+      this.addBox(x - 0.01, y, 0, 0.055, hY, halfW * 2.0, 8);
+      // Primary crisp full-width crimson LED bar
+      this.addBox(x + 0.016, y, 0, 0.022, hY * 0.28, halfW * 1.94, 4);
+      // Outboard sculpted 3D light elements (left & right)
+      for (const s of [-1, 1]) {
+        if (style === 'gt') {
+          this.addBox(x + 0.014, y + hY * 0.26, s * halfW * 0.74, 0.022, hY * 0.16, halfW * 0.44, 4);
+          this.addBox(x + 0.014, y - hY * 0.26, s * halfW * 0.74, 0.022, hY * 0.16, halfW * 0.44, 4);
+        } else {
+          // Flagship SUV dual horizontal tail blades + vertical corner accent
+          this.addBox(x + 0.014, y + hY * 0.28, s * halfW * 0.72, 0.024, hY * 0.18, halfW * 0.50, 4);
+          this.addBox(x + 0.014, y - hY * 0.28, s * halfW * 0.72, 0.024, hY * 0.18, halfW * 0.50, 4);
+          this.addBox(x - 0.04, y, s * (halfW - 0.02), 0.10, hY * 0.88, 0.026, 4);
+        }
+      }
+    }
+    addGrilleUnit(x, y, wZ, hY, depth, slats = 4, chromeFrame = true, slatPart = 8) {
+      // Recessed matte-black radiator backing
+      this.addBox(x + depth * 0.35, y, 0, depth, hY, wZ, 10);
+      // Horizontal grille louvers/bars
+      for (let i = 0; i < slats; i++) {
+        const sy = y - hY * 0.38 + (slats > 1 ? (i / (slats - 1)) * (hY * 0.76) : 0);
+        this.addBox(x - depth * 0.15, sy, 0, 0.028, 0.016, wZ * 0.96, slatPart);
+      }
+      if (chromeFrame) {
+        const f = 0.020;
+        this.addBox(x - depth * 0.22, y + hY * 0.50, 0, 0.032, f, wZ + f * 2, 9);
+        this.addBox(x - depth * 0.22, y - hY * 0.50, 0, 0.032, f, wZ + f * 2, 9);
+        this.addBox(x - depth * 0.22, y, wZ * 0.50, 0.032, hY + f, f, 9);
+        this.addBox(x - depth * 0.22, y, -wZ * 0.50, 0.032, hY + f, f, 9);
+      }
+    }
+    build(name, hasWheels = false, wheelMeta = null, aeroTriEnd = 0) {
       return {
         name,
         positions: new Float32Array(this.pos),
@@ -949,6 +1078,7 @@
         partIds: new Uint8Array(this.part),
         hasWheels,
         wheelMeta,
+        aeroTriEnd,
       };
     }
   }
@@ -1037,257 +1167,469 @@
         mb.addQuad(rings[ix][ia], rings[ix + 1][ia], rings[ix + 1][ia + 1], rings[ix][ia + 1]);
       }
     }
-    // Front & rear end caps
+    // Front & rear end caps (put center vertex last so flat vPart provoking vertex uses frontCapPart/rearCapPart cleanly)
     const frontCenter = mb.addVertex(stations[0] - 0.015, config.frontCapY, 0, -1, 0, 0, config.frontCapPart ?? 3);
     for (let ia = 0; ia < nAng; ia++) {
-      mb.addTri(frontCenter, rings[0][ia + 1], rings[0][ia]);
+      mb.addTri(rings[0][ia + 1], rings[0][ia], frontCenter);
     }
-    const rearCenter = mb.addVertex(stations[nX - 1] + 0.01, config.rearCapY, 0, 1, 0, 0, 3);
+    const rearCenter = mb.addVertex(stations[nX - 1] + 0.01, config.rearCapY, 0, 1, 0, 0, config.rearCapPart ?? 3);
     for (let ia = 0; ia < nAng; ia++) {
-      mb.addTri(rearCenter, rings[nX - 1][ia], rings[nX - 1][ia + 1]);
+      mb.addTri(rings[nX - 1][ia], rings[nX - 1][ia + 1], rearCenter);
     }
   }
 
   function createSportsCarMesh() {
+    // Commercial Production GT Coupe (Porsche 911/Taycan & Aston Martin Vantage OEM aesthetic)
     const mb = new MeshBuilder();
     const stations = [];
-    for (let i = 0; i <= 72; i++) {
-      const t = i / 72;
-      stations.push(-2.24 + t * 4.48);
+    for (let i = 0; i <= 96; i++) {
+      const t = i / 96;
+      stations.push(-2.26 + t * 4.50);
     }
 
     function topY(x) {
-      if (x < -1.94) return lerp(0.30, 0.56, smoothstep(-2.24, -1.94, x));
-      if (x < -1.00) return lerp(0.56, 0.78, smoothstep(-1.94, -1.00, x));
-      if (x < -0.16) return lerp(0.78, 1.23, smoothstep(-1.00, -0.16, x));
-      if (x < 0.72)  return lerp(1.23, 1.11, smoothstep(-0.16, 0.72, x));
-      if (x < 1.56)  return lerp(1.11, 0.85, smoothstep(0.72, 1.56, x));
-      return lerp(0.85, 0.89, smoothstep(1.56, 2.24, x));
+      if (x < -1.96) return lerp(0.32, 0.58, smoothstep(-2.26, -1.96, x));
+      if (x < -0.96) return lerp(0.58, 0.80, smoothstep(-1.96, -0.96, x));
+      if (x < -0.14) return lerp(0.80, 1.24, smoothstep(-0.96, -0.14, x));
+      if (x < 0.68)  return lerp(1.24, 1.13, smoothstep(-0.14, 0.68, x));
+      if (x < 1.62)  return lerp(1.13, 0.86, smoothstep(0.68, 1.62, x));
+      return lerp(0.86, 0.90, smoothstep(1.62, 2.24, x)); // sleek integrated OEM ducktail kick
     }
     function beltY(x) {
-      if (x < -1.85) return lerp(0.28, 0.57, smoothstep(-2.24, -1.85, x));
-      if (x < -1.05) return lerp(0.57, 0.76, smoothstep(-1.85, -1.05, x));
-      if (x < 1.45)  return lerp(0.76, 0.85, smoothstep(-1.05, 1.45, x));
-      return lerp(0.85, 0.83, smoothstep(1.45, 2.24, x));
+      if (x < -1.88) return lerp(0.30, 0.59, smoothstep(-2.26, -1.88, x));
+      if (x < -1.00) return lerp(0.59, 0.77, smoothstep(-1.88, -1.00, x));
+      if (x < 1.48)  return lerp(0.77, 0.87, smoothstep(-1.00, 1.48, x));
+      return lerp(0.87, 0.85, smoothstep(1.48, 2.24, x));
     }
     function botY(x) {
-      if (x < -1.88) return lerp(0.21, 0.145, smoothstep(-2.24, -1.88, x));
-      if (x < 1.52)  return 0.145;
-      return lerp(0.145, 0.36, smoothstep(1.52, 2.24, x));
+      if (x < -1.88) return lerp(0.20, 0.145, smoothstep(-2.26, -1.88, x));
+      if (x < 1.56)  return 0.145;
+      return lerp(0.145, 0.35, smoothstep(1.56, 2.24, x));
     }
     function halfW(x) {
-      let w = 0.91;
-      if (x < -1.84) w = lerp(0.56, 0.91, smoothstep(-2.24, -1.84, x));
-      else if (x < -0.75) w = 0.91 + 0.085 * Math.exp(-Math.pow((x + 1.34) / 0.42, 2));
-      else if (x < 0.65) w = 0.895;
-      else if (x < 1.96) w = 0.895 + 0.125 * Math.exp(-Math.pow((x - 1.32) / 0.48, 2));
-      else w = lerp(0.95, 0.84, smoothstep(1.96, 2.24, x));
+      let w = 0.915;
+      if (x < -1.82) w = lerp(0.62, 0.915, smoothstep(-2.26, -1.82, x));
+      else if (x < -0.75) w = 0.915 + 0.080 * Math.exp(-Math.pow((x + 1.34) / 0.42, 2));
+      else if (x < 0.65) w = 0.90;
+      else if (x < 1.98) w = 0.90 + 0.120 * Math.exp(-Math.pow((x - 1.32) / 0.48, 2));
+      else w = lerp(0.955, 0.84, smoothstep(1.98, 2.24, x));
       return w;
+    }
+
+    function gtProfile(x, theta) {
+      const yt = topY(x);
+      const yb = botY(x);
+      const yblt = Math.min(beltY(x), yt);
+      const w = halfW(x);
+      const s = Math.sin(theta);
+      const c = Math.cos(theta);
+      const signC = c >= 0 ? 1 : -1;
+      let y, z;
+      if (s >= 0) {
+        const hBelt = Math.max(0.01, yblt - (yb + 0.09));
+        const hCab = Math.max(0.0, yt - yblt);
+        if (s < 0.44) {
+          const t = s / 0.44;
+          y = (yb + 0.09) + t * hBelt;
+          const doorScoop = (x > -0.62 && x < 0.88)
+            ? 0.042 * Math.sin(clamp((x + 0.62) / 1.50, 0, 1) * Math.PI) * Math.sin(clamp((t - 0.12) / 0.72, 0, 1) * Math.PI)
+            : 0;
+          const shoulderHip = 0.018 * Math.exp(-Math.pow((t - 0.88) / 0.14, 2));
+          const lowerTuck = 0.032 * Math.pow(1 - t, 2.2);
+          z = signC * (w * Math.pow(1 - 0.04 * t * t, 0.58) - doorScoop - lowerTuck + shoulderHip);
+        } else {
+          const t = (s - 0.44) / 0.56;
+          const cabFactor = smoothstep(0.02, 0.18, hCab);
+          const roofHalfW = lerp(w * 0.89, w * 0.66, cabFactor);
+          const curW = lerp(w * 0.975, roofHalfW, Math.pow(t, 0.66));
+          y = yblt + hCab * Math.pow(Math.sin(t * Math.PI * 0.5), 0.86);
+          z = signC * curW * Math.cos(t * Math.PI * 0.5);
+
+          // Sculpted front hood fender crowns & center power-dome creases
+          if (x > -2.14 && x < -0.92) {
+            const hoodMask = smoothstep(-2.14, -1.84, x) * smoothstep(-0.92, -1.16, x);
+            const zFrac = Math.abs(z) / Math.max(0.2, w);
+            const fenderCrown = 0.042 * Math.exp(-Math.pow((zFrac - 0.68) / 0.21, 2));
+            const powerDome = 0.016 * Math.exp(-Math.pow((zFrac - 0.24) / 0.14, 2));
+            y += hoodMask * (fenderCrown + powerDome);
+          }
+          // Sculpted muscular rear haunch shoulder over rear wheel
+          if (x > 0.72 && x < 2.02) {
+            const haunchMask = smoothstep(0.72, 1.12, x) * smoothstep(2.02, 1.62, x);
+            const zFrac = Math.abs(z) / Math.max(0.2, w);
+            y += haunchMask * 0.026 * Math.exp(-Math.pow((zFrac - 0.74) / 0.18, 2));
+          }
+        }
+      } else {
+        const t = -s;
+        y = lerp(yb + 0.09, yb, Math.pow(t, 0.52));
+        z = signC * (w - 0.032) * Math.cos(t * Math.PI * 0.5);
+      }
+
+      // Deep wheel-well arch recesses at x = -1.34 & x = +1.32
+      const dFront = Math.hypot(x + 1.34, Math.max(0, y - 0.34));
+      const dRear  = Math.hypot(x - 1.32, Math.max(0, y - 0.36));
+      if (dFront < 0.43 && Math.abs(z) > 0.58 && y < 0.72) {
+        const indent = smoothstep(0.43, 0.31, dFront);
+        z -= signC * 0.23 * indent;
+      }
+      if (dRear < 0.45 && Math.abs(z) > 0.58 && y < 0.76) {
+        const indent = smoothstep(0.45, 0.33, dRear);
+        z -= signC * 0.25 * indent;
+      }
+      return [x, y, z];
     }
 
     buildLoftedVehicle(mb, {
       stations,
-      nAng: 48,
-      frontCapY: 0.27,
-      frontCapPart: 3,
-      rearCapY: 0.60,
-      profileFn(x, theta) {
-        const yt = topY(x);
-        const yb = botY(x);
-        const yblt = Math.min(beltY(x), yt);
-        let w = halfW(x);
-        const s = Math.sin(theta);
-        const c = Math.cos(theta);
-        const signC = c >= 0 ? 1 : -1;
-        let y, z;
-        if (s >= 0) {
-          const hBelt = Math.max(0.01, yblt - (yb + 0.10));
-          const hCab = Math.max(0.0, yt - yblt);
-          if (s < 0.42) {
-            const t = s / 0.42;
-            y = (yb + 0.10) + t * hBelt;
-            // Subtle sculpted door character crease / aerodynamic side channel
-            const doorScoop = (x > -0.55 && x < 0.85) ? 0.045 * Math.sin(clamp((x + 0.55) / 1.4, 0, 1) * Math.PI) * Math.sin(t * Math.PI) : 0;
-            z = signC * (w * Math.pow(1 - 0.05 * t * t, 0.6) - doorScoop);
-          } else {
-            const t = (s - 0.42) / 0.58;
-            const cabFactor = smoothstep(0.02, 0.18, hCab);
-            const roofHalfW = lerp(w * 0.88, w * 0.65, cabFactor);
-            const curW = lerp(w * 0.97, roofHalfW, Math.pow(t, 0.72));
-            y = yblt + hCab * Math.sin(t * Math.PI * 0.5);
-            z = signC * curW * Math.cos(t * Math.PI * 0.5);
-          }
-        } else {
-          const t = -s;
-          y = lerp(yb + 0.10, yb, Math.pow(t, 0.55));
-          z = signC * w * Math.cos(t * Math.PI * 0.5);
-        }
-
-        // Smooth wheel arch indentation for wheels at x=-1.34 & x=+1.32
-        const dFront = Math.hypot(x + 1.34, Math.max(0, y - 0.34));
-        const dRear  = Math.hypot(x - 1.32, Math.max(0, y - 0.36));
-        if (dFront < 0.45 && Math.abs(z) > 0.60 && y < 0.74) {
-          const indent = smoothstep(0.45, 0.28, dFront);
-          z -= signC * 0.22 * indent;
-        }
-        if (dRear < 0.47 && Math.abs(z) > 0.60 && y < 0.78) {
-          const indent = smoothstep(0.47, 0.30, dRear);
-          z -= signC * 0.24 * indent;
-        }
-        return [x, y, z];
-      },
-      partFn(x, y, z, theta) {
+      nAng: 64,
+      frontCapY: 0.30,
+      frontCapPart: 10,
+      rearCapY: 0.62,
+      rearCapPart: 0,
+      profileFn: gtProfile,
+      partFn(x, y, z) {
         const yblt = beltY(x);
         const yt = topY(x);
-        // Glass greenhouse (windshield, side windows, rear glass)
-        if (x > -0.98 && x < 1.34 && y > yblt + 0.04 && yt - yblt > 0.12) {
-          const inRoofCenter = x > -0.22 && x < 0.68 && Math.abs(z) < 0.48 && y > yt - 0.06;
-          if (!inRoofCenter) return 2; // tinted glass
+        const w = halfW(x);
+        const dFront = Math.hypot(x + 1.34, Math.max(0, y - 0.34));
+        const dRear  = Math.hypot(x - 1.32, Math.max(0, y - 0.36));
+        if ((dFront < 0.38 && y < 0.69) || (dRear < 0.40 && y < 0.73)) {
+          if (Math.abs(z) > 0.58 && Math.abs(z) < w - 0.06) return 10;
         }
-        // Lower carbon aero sill, front lower intake grille, rear mesh fascia
-        if (y < botY(x) + 0.06 || (x < -2.14 && y < 0.38) || (x > 2.16 && y < 0.62)) return 3;
-        return 0; // metallic car paint
+        // Greenhouse (windshield, side windows, panoramic glass roof, fastback rear glass)
+        if (x > -0.96 && x < 1.38 && y > yblt + 0.035 && yt - yblt > 0.11) {
+          const isRoofRail = x > -0.22 && x < 0.76 && Math.abs(z) > 0.44 && Math.abs(z) < 0.62 && y > yt - 0.075;
+          if (isRoofRail) return 0;
+          const isBPillar = x > 0.16 && x < 0.27 && Math.abs(z) > 0.55 && y < yt - 0.04;
+          if (isBPillar) return 8;
+          const isCPillar = x > 0.82 && x < 1.32 && Math.abs(z) > 0.50 && y < yt - 0.04;
+          if (isCPillar) return 0;
+          const isAPillar = x > -0.82 && x < -0.20 && Math.abs(z) > lerp(0.68, 0.56, clamp((x + 0.82) / 0.62, 0, 1)) && Math.abs(z) < lerp(0.76, 0.63, clamp((x + 0.82) / 0.62, 0, 1));
+          if (isAPillar) return 8;
+          return 2; // laminated privacy glass
+        }
+        if (y < botY(x) + 0.055) return 8;
+        if (x < -2.18 && y < 0.37) return 10;
+        if (x > 2.18 && y < 0.45) return 8;
+        return 0; // metallic clearcoat car paint
       }
     });
 
-    // Compute smooth normals on body shell before adding crisp aero wings & wheels
+    // Smooth automotive Class-A body shell normals
     const bodyVertEnd = mb.pos.length / 3;
+    const bodyTriEnd = mb.idx.length / 3;
     const tmpNorm = recomputeSmoothNormals(new Float32Array(mb.pos), new Uint32Array(mb.idx));
     for (let i = 0; i < bodyVertEnd * 3; i++) mb.norm[i] = tmpNorm[i];
 
-    // Sleek carbon front splitter + side dive planes (canards)
-    mb.addBox(-1.92, 0.145, 0, 0.58, 0.026, 1.66, 3);
-    mb.addBox(-2.16, 0.148, 0, 0.22, 0.022, 1.34, 3);
-    mb.addBox(-2.06, 0.32, 0.84, 0.22, 0.02, 0.12, 3, 0.18, 0.35);
-    mb.addBox(-2.06, 0.32, -0.84, 0.22, 0.02, 0.12, 3, 0.18, -0.35);
-    // Dedicated flush DRL LED headlights & full-width crimson LED taillight bar
-    mb.addBox(-2.07, 0.48, 0.62, 0.24, 0.048, 0.24, 4, -0.26, 0.22);
-    mb.addBox(-2.07, 0.48, -0.62, 0.24, 0.048, 0.24, 4, -0.26, -0.22);
-    mb.addBox(2.23, 0.72, 0, 0.05, 0.036, 1.50, 4);
-    // Side intake scoops & carbon side aero skirts
-    mb.addBox(0.56, 0.52, 0.89, 0.38, 0.22, 0.05, 3, 0, 0.14);
-    mb.addBox(0.56, 0.52, -0.89, 0.38, 0.22, 0.05, 3, 0, -0.14);
-    mb.addBox(0.0, 0.145, 0.89, 1.88, 0.034, 0.13, 3);
-    mb.addBox(0.0, 0.145, -0.89, 1.88, 0.034, 0.13, 3);
-    // Mid-engine rear deck louvers (carbon slats)
-    for (let lv = 0; lv < 5; lv++) {
-      const lx = 1.18 + lv * 0.14;
-      const ly = lerp(0.99, 0.86, lv / 4);
-      mb.addBox(lx, ly, 0, 0.06, 0.018, 0.76 - lv * 0.03, 3, -0.18);
+    // --- PRODUCTION FRONT FASCIA ---
+    // Wide trapezoidal lower cooling grille recessed into bumper nose + satin-chrome bar
+    mb.addGrilleUnit(-2.22, 0.26, 0.94, 0.145, 0.10, 4, false, 8);
+    mb.addBox(-2.24, 0.26, 0, 0.022, 0.012, 0.92, 9);
+    // Twin outboard air-curtain brake ducts tucked flush into front bumper corners
+    for (const s of [-1, 1]) {
+      mb.addBox(-2.12, 0.27, s * 0.61, 0.08, 0.125, 0.20, 10, 0, s * 0.28);
+      mb.addBox(-2.15, 0.27, s * 0.62, 0.024, 0.014, 0.19, 8, 0, s * 0.28);
     }
-    // Rear diffuser vertical strakes + quad brushed titanium exhaust tips
-    for (const zOff of [-0.54, -0.27, 0, 0.27, 0.54]) {
-      mb.addBox(2.02, 0.26, zOff, 0.46, 0.15, 0.022, 3, 0.26);
+    // Refined OEM front bumper lip (flush subtle chin spoiler, not oversized race splitter)
+    mb.addBox(-1.98, 0.148, 0, 0.46, 0.020, 1.54, 8);
+    mb.addBox(-2.18, 0.152, 0, 0.14, 0.016, 1.12, 8);
+    // Satin-chrome front hood emblem flush on nose
+    mb.addTube([-2.12, 0.445, 0], [-2.165, 0.462, 0], 0.034, 0.030, 16, 9, true);
+    mb.addTube([-2.164, 0.461, 0], [-2.170, 0.464, 0], 0.020, 0.020, 16, 8, true);
+    // Flush recessed smoked projector headlights nestled smoothly along the front fender slope
+    for (const s of [-1, 1]) {
+      const hlPitch = -0.38;
+      const hlYaw = s * 0.26;
+      // Smoked piano-black recessed bezel flush with sloped hood surface (y ≈ 0.43 at x=-1.99)
+      mb.addBox(-1.98, 0.435, s * 0.60, 0.26, 0.044, 0.22, 8, hlPitch, hlYaw);
+      // Satin-chrome fine upper eyeliner accent
+      mb.addBox(-1.97, 0.456, s * 0.60, 0.24, 0.008, 0.21, 9, hlPitch, hlYaw);
+      // Twin recessed LED projector optics + razor-thin lower L-shaped DRL LED blade
+      for (const zOff of [-0.045 * s, 0.045 * s]) {
+        mb.addTube([-2.05, 0.438, s * 0.60 + zOff], [-2.095, 0.422, s * 0.60 + zOff], 0.020, 0.018, 12, 9, true);
+        mb.addTube([-2.090, 0.424, s * 0.60 + zOff], [-2.104, 0.419, s * 0.60 + zOff], 0.013, 0.012, 12, 4, true);
+      }
+      mb.addBox(-2.01, 0.416, s * 0.605, 0.24, 0.012, 0.215, 4, hlPitch, hlYaw);
     }
-    for (const zEx of [-0.40, -0.28, 0.28, 0.40]) {
-      mb.addBox(2.21, 0.39, zEx, 0.12, 0.062, 0.062, 5);
-    }
-    // Elevated GT Rear Wing (inverted cambered airfoil + sculpted endplates + swan-neck pylons)
-    mb.addExtrudedAirfoil(2.05, 1.15, 0.36, 0.12, -0.055, 1.74, -0.14, 3, true);
-    mb.addBox(1.94, 0.99, 0.44, 0.20, 0.31, 0.028, 3, -0.24);
-    mb.addBox(1.94, 0.99, -0.44, 0.20, 0.31, 0.028, 3, -0.24);
-    // Sleek aero side mirrors with stalks
-    mb.addBox(-0.62, 0.84, 0.95, 0.17, 0.068, 0.14, 0, 0, 0.16);
-    mb.addBox(-0.62, 0.84, -0.95, 0.17, 0.068, 0.14, 0, 0, -0.16);
-    mb.addBox(-0.62, 0.80, 0.88, 0.08, 0.03, 0.10, 3);
-    mb.addBox(-0.62, 0.80, -0.88, 0.08, 0.03, 0.10, 3);
 
-    // 4 Detailed Forged Wheels with Brake Rotors & Crimson Calipers resting at y = 0
+    // --- PRODUCTION SIDE PROFILE & SURFACE-LOCKED GREENHOUSE TRIM ---
+    for (const s of [-1, 1]) {
+      // Tightly fitted wheel-arch fender lips + dark inner wheel-well liners (flush with body)
+      mb.addArchFlare(-1.34, 0.34, s * 0.875, 0.348, 0.368, 0.12, s, 0, -0.05, Math.PI + 0.05);
+      mb.addArchFlare(1.32, 0.36, s * 0.925, 0.370, 0.398, 0.13, s, 0, -0.08, Math.PI + 0.08);
+      // Front fender air-breather vent behind front wheel arch with chrome garnish blade
+      mb.addBox(-0.82, 0.47, s * 0.892, 0.12, 0.20, 0.036, 10, 0.18, s * 0.04);
+      mb.addBox(-0.82, 0.47, s * 0.905, 0.10, 0.018, 0.024, 9, 0.18, s * 0.04);
+      // Flush satin-chrome pop-out door handles
+      mb.addBox(0.24, 0.72, s * 0.885, 0.15, 0.022, 0.022, 9);
+      mb.addBox(0.24, 0.72, s * 0.878, 0.17, 0.034, 0.014, 8);
+      // Clean piano-black rocker side skirts with subtle satin-chrome accent strip
+      mb.addBox(0.0, 0.148, s * 0.875, 1.80, 0.030, 0.10, 8);
+      mb.addBox(0.0, 0.172, s * 0.895, 1.72, 0.009, 0.018, 9);
+
+      // Surface-locked satin-chrome side window DLO molding (sampled directly from gtProfile!)
+      const thBelt = s > 0 ? Math.asin(0.45) : Math.PI - Math.asin(0.45);
+      const thRoof = s > 0 ? Math.asin(0.84) : Math.PI - Math.asin(0.84);
+      const beltXs = [-0.74, -0.45, -0.10, 0.25, 0.58, 0.82];
+      for (let i = 0; i < beltXs.length - 1; i++) {
+        const p0 = gtProfile(beltXs[i], thBelt);
+        const p1 = gtProfile(beltXs[i + 1], thBelt);
+        mb.addTube([p0[0], p0[1], p0[2] + s * 0.004], [p1[0], p1[1], p1[2] + s * 0.004], 0.007, 0.007, 8, 9, true);
+      }
+      const roofXs = [-0.66, -0.40, -0.14, 0.16, 0.46, 0.72];
+      for (let i = 0; i < roofXs.length - 1; i++) {
+        const p0 = gtProfile(roofXs[i], thRoof);
+        const p1 = gtProfile(roofXs[i + 1], thRoof);
+        mb.addTube([p0[0], p0[1], p0[2] + s * 0.005], [p1[0], p1[1], p1[2] + s * 0.005], 0.008, 0.008, 8, 9, true);
+      }
+      const pTopEnd = gtProfile(0.72, thRoof);
+      const pBltEnd = gtProfile(0.82, thBelt);
+      mb.addTube([pTopEnd[0], pTopEnd[1], pTopEnd[2] + s * 0.005], [pBltEnd[0], pBltEnd[1], pBltEnd[2] + s * 0.004], 0.008, 0.008, 8, 9, true);
+
+      // Sculpted aerodynamic two-tone wing mirrors with stalk + amber LED turn signal strip
+      mb.addBox(-0.62, 0.855, s * 0.96, 0.17, 0.040, 0.14, 0, 0.04, s * 0.16);
+      mb.addBox(-0.62, 0.824, s * 0.955, 0.15, 0.024, 0.13, 8, 0.04, s * 0.16);
+      mb.addBox(-0.685, 0.840, s * 0.98, 0.036, 0.011, 0.10, 11, 0.04, s * 0.16);
+      mb.addTube([-0.60, 0.785, s * 0.86], [-0.62, 0.825, s * 0.94], 0.018, 0.015, 10, 8, true);
+    }
+
+    // --- PRODUCTION REAR FASCIA ---
+    // Full-width recessed smoked gloss-black OLED taillight bar (Porsche / Aston OEM style)
+    mb.addTaillightBar(2.225, 0.735, 0.76, 0.068, 'gt');
+    // Sleek flush OEM active rear lip spoiler (clean commercial GT look — no oversized track wing)
+    mb.addBox(2.14, 0.905, 0, 0.22, 0.024, 1.48, 8, 0.10);
+    mb.addBox(2.22, 0.918, 0, 0.06, 0.016, 1.44, 0, 0.12);
+    // Recessed rear license plate bay + thin chrome plate border
+    mb.addBox(2.21, 0.545, 0, 0.04, 0.13, 0.48, 10);
+    mb.addBox(2.225, 0.545, 0, 0.018, 0.105, 0.42, 9);
+    mb.addBox(2.230, 0.545, 0, 0.014, 0.092, 0.395, 8);
+    // Mid-engine rear deck glass slats
+    for (let lv = 0; lv < 4; lv++) {
+      const lx = 1.24 + lv * 0.14;
+      const ly = lerp(0.985, 0.88, lv / 3);
+      mb.addBox(lx, ly, 0, 0.048, 0.012, 0.68 - lv * 0.03, 8, -0.18);
+    }
+    // Rear aerodynamic diffuser vertical strakes
+    for (const zOff of [-0.52, -0.26, 0, 0.26, 0.52]) {
+      mb.addBox(2.04, 0.25, zOff, 0.42, 0.13, 0.018, 8, 0.26);
+    }
+    // Quad real cylindrical satin-chrome exhaust pipes with dark inner bores
+    for (const zEx of [-0.42, -0.31, 0.31, 0.42]) {
+      mb.addTube([2.08, 0.375, zEx], [2.255, 0.375, zEx], 0.036, 0.036, 16, 9, true);
+      mb.addTube([2.242, 0.375, zEx], [2.260, 0.375, zEx], 0.026, 0.026, 14, 10, true);
+    }
+
+    // 4 Detailed Forged Y-Spoke Wheels with Slotted Rotors & Crimson Calipers resting at y = 0
     mb.addWheel(-1.34, 0.34, 0.85, 0.34, 0.26, 1, 5);
     mb.addWheel(-1.34, 0.34, -0.85, 0.34, 0.26, 1, 5);
     mb.addWheel(1.32, 0.36, 0.88, 0.36, 0.30, 1, 5);
     mb.addWheel(1.32, 0.36, -0.88, 0.36, 0.30, 1, 5);
 
-    return mb.build('GT 스포츠카', true, { fx: -1.34, fy: 0.34, rx: 1.32, ry: 0.36 });
+    return mb.build('GT 스포츠카', true, { fx: -1.34, fy: 0.34, rx: 1.32, ry: 0.36 }, bodyTriEnd);
   }
 
   function createSuvMesh() {
+    // Commercial Production Flagship Luxury SUV (Range Rover Sport / Genesis GV80 / Cayenne aesthetic)
     const mb = new MeshBuilder();
     const stations = [];
-    for (let i = 0; i <= 40; i++) stations.push(-2.30 + (i / 40) * 4.60);
+    for (let i = 0; i <= 84; i++) stations.push(-2.30 + (i / 84) * 4.58);
 
     function topY(x) {
-      if (x < -2.02) return lerp(0.45, 0.94, smoothstep(-2.30, -2.02, x));
-      if (x < -1.05) return lerp(0.94, 1.06, smoothstep(-2.02, -1.05, x));
-      if (x < -0.45) return lerp(1.06, 1.72, smoothstep(-1.05, -0.45, x));
-      if (x < 1.85)  return lerp(1.72, 1.66, smoothstep(-0.45, 1.85, x));
-      return lerp(1.66, 1.48, smoothstep(1.85, 2.30, x));
+      if (x < -2.00) return lerp(0.50, 0.96, smoothstep(-2.30, -2.00, x));
+      if (x < -1.02) return lerp(0.96, 1.07, smoothstep(-2.00, -1.02, x));
+      if (x < -0.38) return lerp(1.07, 1.71, smoothstep(-1.02, -0.38, x));
+      if (x < 1.82)  return lerp(1.71, 1.65, smoothstep(-0.38, 1.82, x));
+      return lerp(1.65, 1.36, smoothstep(1.82, 2.28, x));
     }
     function beltY(x) {
-      if (x < -2.05) return lerp(0.45, 0.92, smoothstep(-2.30, -2.05, x));
-      return lerp(0.92, 1.08, smoothstep(-2.05, 2.30, x));
+      if (x < -2.02) return lerp(0.48, 0.93, smoothstep(-2.30, -2.02, x));
+      return lerp(0.93, 1.11, smoothstep(-2.02, 2.28, x));
     }
     function botY(x) {
-      if (x < -1.95) return lerp(0.36, 0.26, smoothstep(-2.30, -1.95, x));
-      if (x < 1.80)  return 0.26;
-      return lerp(0.26, 0.38, smoothstep(1.80, 2.30, x));
+      if (x < -1.96) return lerp(0.34, 0.25, smoothstep(-2.30, -1.96, x));
+      if (x < 1.80)  return 0.25;
+      return lerp(0.25, 0.37, smoothstep(1.80, 2.28, x));
     }
     function halfW(x) {
-      if (x < -2.02) return lerp(0.76, 0.98, smoothstep(-2.30, -2.02, x));
-      if (x > 2.02) return lerp(0.98, 0.88, smoothstep(2.02, 2.30, x));
-      return 0.98;
+      let w = 0.985;
+      if (x < -1.96) w = lerp(0.78, 0.985, smoothstep(-2.30, -1.96, x));
+      else if (x < -0.90) w = 0.985 + 0.032 * Math.exp(-Math.pow((x + 1.40) / 0.42, 2));
+      else if (x > 1.94) w = lerp(0.995, 0.87, smoothstep(1.94, 2.28, x));
+      else if (x > 0.85) w = 0.985 + 0.035 * Math.exp(-Math.pow((x - 1.38) / 0.44, 2));
+      return w;
+    }
+
+    function suvProfile(x, theta) {
+      const yt = topY(x), yb = botY(x), yblt = Math.min(beltY(x), yt);
+      const w = halfW(x);
+      const s = Math.sin(theta), c = Math.cos(theta);
+      const signC = c >= 0 ? 1 : -1;
+      let y, z;
+      if (s >= 0) {
+        if (s < 0.48) {
+          const t = s / 0.48;
+          y = (yb + 0.07) + t * Math.max(0.01, yblt - (yb + 0.07));
+          const lowerUndercut = 0.032 * Math.pow(1 - t, 1.9);
+          const shoulderLine = 0.016 * Math.exp(-Math.pow((t - 0.86) / 0.12, 2));
+          const doorSculpt = (x > -0.78 && x < 1.02)
+            ? 0.022 * Math.sin(clamp((x + 0.78) / 1.80, 0, 1) * Math.PI) * Math.exp(-Math.pow((t - 0.36) / 0.24, 2))
+            : 0;
+          z = signC * (w - lowerUndercut + shoulderLine - doorSculpt);
+        } else {
+          const t = (s - 0.48) / 0.52;
+          const hCab = Math.max(0, yt - yblt);
+          const roofW = w * 0.82;
+          const curW = lerp(w * 0.99, roofW, Math.pow(t, 0.54));
+          // Slightly flatter SUV roof crown (authentic production SUV roofline)
+          y = yblt + hCab * Math.pow(Math.sin(t * Math.PI * 0.5), 0.72);
+          z = signC * curW * Math.cos(t * Math.PI * 0.5);
+
+          // Clamshell hood power creases
+          if (x > -2.16 && x < -1.04) {
+            const hMask = smoothstep(-2.16, -1.88, x) * smoothstep(-1.04, -1.25, x);
+            const zFrac = Math.abs(z) / Math.max(0.2, w);
+            y += hMask * (0.026 * Math.exp(-Math.pow((zFrac - 0.66) / 0.20, 2)) + 0.014 * Math.exp(-Math.pow((zFrac - 0.26) / 0.15, 2)));
+          }
+        }
+      } else {
+        const t = -s;
+        y = lerp(yb + 0.07, yb, Math.pow(t, 0.5));
+        z = signC * (w - 0.032) * Math.cos(t * Math.PI * 0.5);
+      }
+      // Deep wheel-well arch recesses for 21" SUV wheels
+      const dFront = Math.hypot(x + 1.40, Math.max(0, y - 0.40));
+      const dRear = Math.hypot(x - 1.38, Math.max(0, y - 0.40));
+      if (dFront < 0.48 && Math.abs(z) > 0.64 && y < 0.85) z -= signC * 0.20 * smoothstep(0.48, 0.34, dFront);
+      if (dRear < 0.48 && Math.abs(z) > 0.64 && y < 0.85) z -= signC * 0.20 * smoothstep(0.48, 0.34, dRear);
+      return [x, y, z];
     }
 
     buildLoftedVehicle(mb, {
       stations,
-      frontCapY: 0.65,
-      rearCapY: 1.02,
-      profileFn(x, theta) {
-        const yt = topY(x), yb = botY(x), yblt = Math.min(beltY(x), yt);
-        const w = halfW(x);
-        const s = Math.sin(theta), c = Math.cos(theta);
-        const signC = c >= 0 ? 1 : -1;
-        let y, z;
-        if (s >= 0) {
-          if (s < 0.48) {
-            const t = s / 0.48;
-            y = (yb + 0.08) + t * Math.max(0.01, yblt - (yb + 0.08));
-            z = signC * w;
-          } else {
-            const t = (s - 0.48) / 0.52;
-            const hCab = Math.max(0, yt - yblt);
-            const roofW = w * 0.84;
-            const curW = lerp(w, roofW, Math.pow(t, 0.65));
-            y = yblt + hCab * Math.sin(t * Math.PI * 0.5);
-            z = signC * curW * Math.cos(t * Math.PI * 0.5);
-          }
-        } else {
-          const t = -s;
-          y = lerp(yb + 0.08, yb, Math.pow(t, 0.5));
-          z = signC * w * Math.cos(t * Math.PI * 0.5);
-        }
-        const dFront = Math.hypot(x + 1.40, Math.max(0, y - 0.40));
-        const dRear = Math.hypot(x - 1.38, Math.max(0, y - 0.40));
-        if (dFront < 0.48 && Math.abs(z) > 0.68) z -= signC * 0.14 * smoothstep(0.48, 0.34, dFront);
-        if (dRear < 0.48 && Math.abs(z) > 0.68) z -= signC * 0.14 * smoothstep(0.48, 0.34, dRear);
-        return [x, y, z];
-      },
+      nAng: 56,
+      frontCapY: 0.66,
+      frontCapPart: 0,
+      rearCapY: 0.96,
+      rearCapPart: 0,
+      profileFn: suvProfile,
       partFn(x, y, z) {
         const yblt = beltY(x), yt = topY(x);
-        if (x > -1.04 && x < 2.22 && y > yblt + 0.04 && yt - yblt > 0.14) {
-          if (!(Math.abs(z) < 0.72 && y > yt - 0.07 && x > -0.45 && x < 1.90)) return 2;
+        const w = halfW(x);
+        const dFront = Math.hypot(x + 1.40, Math.max(0, y - 0.40));
+        const dRear = Math.hypot(x - 1.38, Math.max(0, y - 0.40));
+        if ((dFront < 0.43 && y < 0.82) || (dRear < 0.43 && y < 0.82)) {
+          if (Math.abs(z) > 0.64 && Math.abs(z) < w - 0.05) return 10;
         }
-        if (y < botY(x) + 0.10 || (x < -2.18 && y < 0.78)) return 3;
-        if (x < -2.18 && y > 0.74 && Math.abs(z) > 0.52) return 4;
-        return 0;
+        // Floating-roof greenhouse with gloss piano-black A/B/C/D pillars
+        if (x > -1.04 && x < 2.24 && y > yblt + 0.035 && yt - yblt > 0.14) {
+          if (Math.abs(z) < 0.72 && y > yt - 0.075 && x > -0.44 && x < 1.90) return 0;
+          if (Math.abs(z) > 0.66 && y < yt - 0.04) {
+            if ((x > 0.10 && x < 0.24) || (x > 1.12 && x < 1.26) || (x > 1.86 && x < 2.10)) return 8;
+          }
+          if (x > -0.94 && x < -0.36 && Math.abs(z) > 0.75 && Math.abs(z) < 0.86) return 8;
+          return 2; // privacy tinted glass
+        }
+        // Matte lower body cladding
+        if (y < botY(x) + 0.12) return 10;
+        return 0; // metallic car paint
       }
     });
     const bodyVertEnd = mb.pos.length / 3;
+    const bodyTriEnd = mb.idx.length / 3;
     const tmpNorm = recomputeSmoothNormals(new Float32Array(mb.pos), new Uint32Array(mb.idx));
     for (let i = 0; i < bodyVertEnd * 3; i++) mb.norm[i] = tmpNorm[i];
 
-    // Roof lip spoiler & mirrors
-    mb.addBox(2.26, 1.62, 0, 0.24, 0.06, 1.56, 3, -0.10);
-    mb.addBox(-0.74, 1.12, 1.06, 0.20, 0.12, 0.18, 0);
-    mb.addBox(-0.74, 1.12, -1.06, 0.20, 0.12, 0.18, 0);
+    // --- PRODUCTION SUV FRONT FASCIA (tucked flush into front nose) ---
+    // Bold chrome-framed flagship grille with 5 horizontal piano-black louvers + center emblem
+    mb.addGrilleUnit(-2.22, 0.70, 0.74, 0.27, 0.12, 5, true, 8);
+    mb.addTube([-2.24, 0.72, 0], [-2.285, 0.72, 0], 0.044, 0.040, 18, 9, true);
+    mb.addTube([-2.282, 0.72, 0], [-2.290, 0.72, 0], 0.028, 0.028, 18, 8, true);
+    // Lower bumper cooling intake + satin-silver front skid plate (nested inside tapered lower nose)
+    mb.addGrilleUnit(-2.21, 0.45, 0.78, 0.095, 0.09, 2, false, 8);
+    mb.addBox(-2.19, 0.365, 0, 0.09, 0.068, 0.80, 9);
+    // Twin-line matrix LED headlights + outboard vertical air-curtain bumper intakes (100% flush)
+    for (const s of [-1, 1]) {
+      mb.addHeadlightUnit(-2.10, 0.815, s * 0.565, 0.18, 0.082, 0.25, s, 'suv');
+      mb.addBox(-2.14, 0.56, s * 0.62, 0.07, 0.18, 0.12, 10, 0, s * 0.24);
+      mb.addBox(-2.165, 0.56, s * 0.63, 0.020, 0.16, 0.015, 9, 0, s * 0.24);
+    }
 
-    // 4 SUV wheels
+    // --- PRODUCTION SUV SIDE PROFILE & SURFACE-LOCKED ROOF RAILS ---
+    for (const s of [-1, 1]) {
+      // Matte charcoal wheel-arch fender cladding flares + dark inner wheel-well liners
+      mb.addArchFlare(-1.40, 0.40, s * 0.975, 0.422, 0.472, 0.14, s, 10, -0.15, Math.PI + 0.15);
+      mb.addArchFlare(1.38, 0.40, s * 0.975, 0.422, 0.472, 0.14, s, 10, -0.15, Math.PI + 0.15);
+      // Lower side rocker cladding with full-length satin-chrome trim bar
+      mb.addBox(0.0, 0.295, s * 0.960, 1.84, 0.068, 0.055, 10);
+      mb.addBox(0.0, 0.334, s * 0.978, 1.80, 0.020, 0.022, 9);
+      // 4 Flush satin-chrome door handles (front & rear doors)
+      for (const hx of [-0.02, 0.94]) {
+        mb.addBox(hx, 0.92, s * 0.985, 0.16, 0.026, 0.024, 9);
+        mb.addBox(hx, 0.92, s * 0.978, 0.18, 0.040, 0.014, 8);
+      }
+      // Surface-locked satin-chrome side window beltline & upper DLO molding
+      const thBelt = s > 0 ? Math.asin(0.49) : Math.PI - Math.asin(0.49);
+      const thTop = s > 0 ? Math.asin(0.86) : Math.PI - Math.asin(0.86);
+      const thRail = s > 0 ? Math.asin(0.92) : Math.PI - Math.asin(0.92);
+      const bXs = [-0.86, -0.20, 0.50, 1.25, 1.92];
+      for (let i = 0; i < bXs.length - 1; i++) {
+        const p0 = suvProfile(bXs[i], thBelt);
+        const p1 = suvProfile(bXs[i + 1], thBelt);
+        mb.addTube([p0[0], p0[1], p0[2] + s * 0.005], [p1[0], p1[1], p1[2] + s * 0.005], 0.009, 0.009, 8, 9, true);
+      }
+      const uXs = [-0.36, 0.20, 0.80, 1.40, 1.82];
+      for (let i = 0; i < uXs.length - 1; i++) {
+        const p0 = suvProfile(uXs[i], thTop);
+        const p1 = suvProfile(uXs[i + 1], thTop);
+        mb.addTube([p0[0], p0[1], p0[2] + s * 0.006], [p1[0], p1[1], p1[2] + s * 0.006], 0.009, 0.009, 8, 9, true);
+      }
+      // Flush surface-locked satin-aluminum roof rails sitting directly on the SUV roof crown!
+      const rXs = [-0.32, 0.20, 0.75, 1.30, 1.74];
+      for (let i = 0; i < rXs.length - 1; i++) {
+        const p0 = suvProfile(rXs[i], thRail);
+        const p1 = suvProfile(rXs[i + 1], thRail);
+        mb.addTube([p0[0], p0[1] + 0.022, p0[2]], [p1[0], p1[1] + 0.022, p1[2]], 0.018, 0.017, 10, 9, true);
+      }
+      for (const rx of [-0.30, 0.72, 1.72]) {
+        const pr = suvProfile(rx, thRail);
+        mb.addBox(pr[0], pr[1] + 0.005, pr[2], 0.09, 0.036, 0.034, 8);
+      }
+      // Two-tone sculpted SUV side mirrors + amber LED turn repeater
+      mb.addBox(-0.74, 1.145, s * 1.05, 0.17, 0.064, 0.17, 0, 0, s * 0.10);
+      mb.addBox(-0.74, 1.098, s * 1.045, 0.15, 0.034, 0.16, 8, 0, s * 0.10);
+      mb.addBox(-0.815, 1.120, s * 1.07, 0.028, 0.013, 0.12, 11, 0, s * 0.10);
+      mb.addTube([-0.72, 1.03, s * 0.95], [-0.74, 1.09, s * 1.02], 0.022, 0.018, 10, 8, true);
+    }
+    // Gloss piano-black shark-fin roof antenna flush on rear roof center
+    mb.addBox(1.50, 1.675, 0, 0.16, 0.068, 0.034, 8, -0.34);
+
+    // --- PRODUCTION SUV REAR FASCIA ---
+    // Flush integrated tailgate roof lip spoiler + crimson LED high-mount stop lamp (HMSL)
+    mb.addBox(1.94, 1.595, 0, 0.22, 0.048, 1.24, 0, -0.22);
+    mb.addBox(2.04, 1.575, 0, 0.024, 0.014, 0.40, 4, -0.22);
+    // Full-width smoked OLED rear taillight bar + vertical corner accents
+    mb.addTaillightBar(2.265, 1.07, 0.80, 0.098, 'suv');
+    // Satin-chrome tailgate garnish bar + recessed license plate bay
+    mb.addBox(2.27, 0.99, 0, 0.022, 0.016, 1.28, 9);
+    mb.addBox(2.255, 0.80, 0, 0.04, 0.145, 0.48, 10);
+    mb.addBox(2.270, 0.80, 0, 0.018, 0.112, 0.42, 9);
+    mb.addBox(2.276, 0.80, 0, 0.014, 0.098, 0.395, 8);
+    // Clean matte-black lower rear bumper valance + satin-silver skid plate diffuser + twin chrome exhausts
+    mb.addBox(2.22, 0.44, 0, 0.12, 0.18, 1.56, 10);
+    mb.addBox(2.24, 0.40, 0, 0.10, 0.10, 1.10, 9);
+    for (const s of [-1, 1]) {
+      mb.addBox(2.25, 0.41, s * 0.62, 0.085, 0.066, 0.17, 9);
+      mb.addBox(2.275, 0.41, s * 0.62, 0.055, 0.044, 0.135, 10);
+    }
+
+    // 4 21-inch SUV Forged Alloy Wheels resting at y = 0
     mb.addWheel(-1.40, 0.40, 0.93, 0.40, 0.28, 1, 5);
     mb.addWheel(-1.40, 0.40, -0.93, 0.40, 0.28, 1, 5);
     mb.addWheel(1.38, 0.40, 0.93, 0.40, 0.28, 1, 5);
     mb.addWheel(1.38, 0.40, -0.93, 0.40, 0.28, 1, 5);
 
-    return mb.build('SUV', true, { fx: -1.40, fy: 0.40, rx: 1.38, ry: 0.40 });
+    return mb.build('SUV', true, { fx: -1.40, fy: 0.40, rx: 1.38, ry: 0.40 }, bodyTriEnd);
   }
 
   function createFormulaMesh() {
@@ -1937,6 +2279,7 @@
       normals: outNorm,
       indices: rawMesh.indices,
       partIds: rawMesh.partIds,
+      aeroTriEnd: rawMesh.aeroTriEnd || 0,
       hasWheels: rawMesh.hasWheels && opts.isPreset && Math.abs(opts.pitchDeg) < 0.01 && Math.abs(opts.yawDeg) < 0.01 && opts.frontAxis === '-x' && opts.upAxis === 'y',
       wheelMeta: rawMesh.wheelMeta ? {
         fx: rawMesh.wheelMeta.fx * normScale,
@@ -2369,8 +2712,15 @@
       let copW = 0, copXSum = 0, copYSum = 0, copZSum = 0;
       let fyFrontSum = 0, fyRearSum = 0;
 
+      const partIds = mesh.partIds;
+      const aeroTriEnd = mesh.aeroTriEnd || 0;
+      const skipTrim = !!(aeroTriEnd > 0 && partIds);
       for (let t = 0; t < triCount; t++) {
         const ia = ind[t * 3], ib = ind[t * 3 + 1], ic = ind[t * 3 + 2];
+        if (skipTrim && t >= aeroTriEnd) {
+          const pid = partIds[ic];
+          if (pid === 4 || pid >= 8) continue;
+        }
         const a = ia * 3, b = ib * 3, c = ic * 3;
         const e1x = pos[b] - pos[a], e1y = pos[b + 1] - pos[a + 1], e1z = pos[b + 2] - pos[a + 2];
         const e2x = pos[c] - pos[a], e2y = pos[c + 1] - pos[a + 1], e2z = pos[c + 2] - pos[a + 2];
@@ -2826,6 +3176,7 @@
         uniform vec3 uPaintColor;
         uniform int uSurfaceMode; // 0=studio, 1=pressure, 2=wireframe-xray
         uniform float uLightTheme;
+        uniform float uCarStyle; // 0=other, 1=GT coupe, 2=Flagship SUV
         out vec4 fragColor;
         ${COLORMAP_GLSL}
 
@@ -2916,23 +3267,24 @@
             float tread = 0.85 + 0.15 * sin(vLocalPos.z * 95.0) * smoothstep(0.2, 0.85, 1.0 - abs(N.z));
             baseColor = vec3(0.022, 0.024, 0.028) * tread;
             metallic = 0.0; rough = 0.78; clearcoat = 0.0;
-          } else if (abs(vPart - 2.0) < 0.3) { // Tinted reflective cockpit glass
-            baseColor = vec3(0.012, 0.022, 0.032);
-            metallic = 0.05; rough = 0.04; clearcoat = 1.0; clearcoatRough = 0.025;
+          } else if (abs(vPart - 2.0) < 0.3) { // Laminated privacy automotive glass
+            float cabinTint = smoothstep(0.65, 1.35, vLocalPos.y);
+            baseColor = mix(vec3(0.008, 0.014, 0.022), vec3(0.016, 0.028, 0.042), cabinTint);
+            metallic = 0.06; rough = 0.035; clearcoat = 1.0; clearcoatRough = 0.022;
           } else if (abs(vPart - 3.0) < 0.3) { // 2x2 Twill Woven Carbon Fiber!
             float u = (vLocalPos.x + vLocalPos.z) * 78.0;
             float v = (vLocalPos.x - vLocalPos.z + vLocalPos.y) * 78.0;
             float weave = 0.5 + 0.5 * sin(u) * sin(v);
             baseColor = mix(vec3(0.022, 0.024, 0.028), vec3(0.068, 0.072, 0.082), weave);
             metallic = 0.18; rough = mix(0.36, 0.24, weave); clearcoat = 0.45; clearcoatRough = 0.16;
-          } else if (abs(vPart - 4.0) < 0.3) { // Volumetric LED Headlights & Taillight Bar
-            bool isFront = vWorldPos.x < 0.0;
-            vec3 ledCol = isFront ? vec3(2.2, 2.45, 2.8) : vec3(2.6, 0.16, 0.12);
-            float coreGlow = 0.78 + 0.22 * ndv;
+          } else if (abs(vPart - 4.0) < 0.3) { // Volumetric LED DRL & OLED Taillight Blades
+            bool isFront = vLocalPos.x < 0.0;
+            vec3 ledCol = isFront ? vec3(2.4, 2.6, 2.95) : vec3(2.8, 0.14, 0.10);
+            float coreGlow = 0.80 + 0.20 * ndv;
             vec3 mapped = acesFilm(ledCol * coreGlow);
             fragColor = vec4(pow(mapped, vec3(1.0 / 2.2)), 1.0);
             return;
-          } else if (abs(vPart - 5.0) < 0.3) { // Brushed Forged Alloy Rims / Titanium Exhausts
+          } else if (abs(vPart - 5.0) < 0.3) { // Brushed Forged Alloy Rims
             baseColor = vec3(0.68, 0.71, 0.76);
             metallic = 0.94; rough = 0.18; clearcoat = 0.25; clearcoatRough = 0.08;
           } else if (abs(vPart - 6.0) < 0.3) { // Machined Steel Slotted Brake Disc Rotor
@@ -2942,9 +3294,90 @@
           } else if (abs(vPart - 7.0) < 0.3) { // Performance Crimson Racing Brake Caliper
             baseColor = vec3(0.75, 0.04, 0.05);
             metallic = 0.25; rough = 0.26; clearcoat = 0.80; clearcoatRough = 0.09;
+          } else if (abs(vPart - 8.0) < 0.3) { // Gloss Piano Black Trim (pillars, bezels, grille louvers)
+            baseColor = vec3(0.014, 0.016, 0.020);
+            metallic = 0.06; rough = 0.14; clearcoat = 0.96; clearcoatRough = 0.04;
+          } else if (abs(vPart - 9.0) < 0.3) { // Satin Chrome / Brightwork (window molding, grille frame, handles, exhausts)
+            baseColor = vec3(0.84, 0.86, 0.90);
+            metallic = 0.98; rough = 0.11; clearcoat = 0.28; clearcoatRough = 0.05;
+          } else if (abs(vPart - 10.0) < 0.3) { // Matte ABS Cladding / Wheel-Well Liner / Grille Recess
+            baseColor = vec3(0.018, 0.020, 0.024);
+            metallic = 0.0; rough = 0.86; clearcoat = 0.0;
+          } else if (abs(vPart - 11.0) < 0.3) { // Amber LED Side Turn-Signal Repeater
+            vec3 amb = vec3(2.5, 0.92, 0.08) * (0.82 + 0.18 * ndv);
+            vec3 mapped = acesFilm(amb);
+            fragColor = vec4(pow(mapped, vec3(1.0 / 2.2)), 1.0);
+            return;
           } else {
             // Smooth liquid-metallic clearcoat sheen (zero moire)
             baseColor *= mix(0.92, 1.08, pow(ndv, 0.55));
+            // Anti-aliased OEM body panel shutlines (hood, doors, bumpers, fuel filler flap)
+            if (uCarStyle > 0.5) {
+              float seam = 0.0;
+              float px = vLocalPos.x, py = vLocalPos.y, az = abs(vLocalPos.z);
+              float sw = 0.0042;
+              if (uCarStyle < 1.5) {
+                // GT Coupe shutlines
+                // Clamshell hood side & front seams
+                if (px > -1.96 && px < -0.94 && py > 0.52) {
+                  float hoodZ = mix(0.54, 0.68, clamp((px + 1.96) / 1.02, 0.0, 1.0));
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(az - hoodZ)));
+                }
+                if (az < 0.55 && py > 0.42) {
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(px + 1.96)));
+                }
+                // 2-Door front hinge & sculpted rear door shutline
+                if (az > 0.72 && py > 0.20 && py < 0.82) {
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(px + 0.68)));
+                  float doorRearX = 0.50 + 0.10 * smoothstep(0.32, 0.80, py);
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(px - doorRearX)));
+                }
+                if (az > 0.72 && px > -0.68 && px < 0.52) {
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(py - 0.21)));
+                }
+                // Front & rear bumper cutlines
+                if (az > 0.66 && py > 0.45 && py < 0.72) {
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(px + 1.78)));
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(px - 1.82)));
+                }
+                // Circular fuel filler door on right rear fender
+                if (vLocalPos.z > 0.68) {
+                  float rFuel = length(vec2(px - 1.02, py - 0.81));
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw * 0.9, abs(rFuel - 0.072)));
+                }
+              } else {
+                // Flagship 4-Door SUV shutlines
+                // Clamshell hood side & front seams
+                if (px > -2.14 && px < -1.00 && py > 0.84) {
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(az - 0.78)));
+                }
+                if (az < 0.79 && py > 0.82) {
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(px + 2.14)));
+                }
+                // 4-Door seams: front hinge (-0.82), B-pillar split (+0.17), rear door trailing edge (+1.12)
+                if (az > 0.84 && py > 0.34 && py < 1.04) {
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(px + 0.82)));
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(px - 0.17)));
+                  float rearDoorX = 1.12 - 0.16 * smoothstep(0.62, 0.36, py);
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(px - rearDoorX)));
+                }
+                // Rear tailgate shutline
+                if (az > 0.62 && az < 0.82 && py > 0.56 && py < 1.54) {
+                  seam = max(seam, 1.0 - smoothstep(0.0, sw, abs(px - 2.22)));
+                }
+                // Fuel filler door on right rear quarter
+                if (vLocalPos.z > 0.84) {
+                  vec2 dFuel = abs(vec2(px - 1.54, py - 0.94)) - vec2(0.075, 0.060);
+                  float boxD = abs(max(dFuel.x, dFuel.y));
+                  if (dFuel.x < 0.01 && dFuel.y < 0.01) seam = max(seam, 1.0 - smoothstep(0.0, sw * 0.9, boxD));
+                }
+              }
+              if (seam > 0.01) {
+                baseColor *= mix(1.0, 0.14, seam * 0.88);
+                clearcoat *= mix(1.0, 0.10, seam);
+                rough = mix(rough, 0.85, seam);
+              }
+            }
           }
 
           // PBR Fresnel (Schlick)
@@ -3642,6 +4075,8 @@
         gl.uniform3fv(gl.getUniformLocation(this.modelProg, 'uPaintColor'), paintRGB);
         gl.uniform1i(gl.getUniformLocation(this.modelProg, 'uSurfaceMode'), surfaceMode);
         gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uLightTheme'), lt);
+        const carStyle = (state.isPreset && state.preset === 'sportscar') ? 1.0 : (state.isPreset && state.preset === 'suv') ? 2.0 : 0.0;
+        gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uCarStyle'), carStyle);
         gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uWheelSpin'), 0.0);
         gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uHasWheels'), 0.0);
         gl.uniform2f(gl.getUniformLocation(this.modelProg, 'uFrontAxle'), this.wheelMeta.fx, this.wheelMeta.fy);

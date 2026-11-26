@@ -1,0 +1,3646 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AERO LAB 3D — 3D 풍동 실험 시뮬레이션</title>
+  <meta name="description" content="WebGL2 기반 실시간 3D 풍동 실험 시뮬레이션. GT 스포츠카 기본 모델 및 사용자 3D 모델(.glb, .gltf, .obj, .stl) 업로드, 3D 스모크 유선, 표면 압력 히트맵(Cp), 항력/다운포스 실시간 해석을 지원합니다." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2338bdf8'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='sans-serif' font-weight='700' font-size='14' fill='%23082f49'%3E3D%3C/text%3E%3C/svg%3E" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    :root {
+      --background: #0d1117;
+      --card: #161b22;
+      --border: #30363d;
+      --foreground: #f0f6fc;
+      --muted-foreground: #8b949e;
+      --primary: #38bdf8;
+      --primary-foreground: #082f49;
+    }
+    html.light {
+      --background: #f3f5f8;
+      --card: #ffffff;
+      --border: #d0d7de;
+      --foreground: #1f2328;
+      --muted-foreground: #59636e;
+      --primary: #0969da;
+      --primary-foreground: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #gl-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+    }
+    #gl-canvas:active {
+      cursor: grabbing;
+    }
+    .glass-panel {
+      background: color-mix(in srgb, var(--card) 90%, transparent);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .aero-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+    .aero-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .aero-scroll::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, var(--muted-foreground) 32%, transparent);
+      border-radius: 999px;
+    }
+    input[type="range"].aero-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--foreground) 16%, transparent);
+      outline: none;
+    }
+    input[type="range"].aero-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 2px solid var(--card);
+      cursor: pointer;
+      transition: transform 0.12s ease;
+    }
+    input[type="range"].aero-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.18);
+    }
+    button.tab-btn, button.preset-btn, button.surface-btn, button.colormap-btn, button.rake-btn, button.slice-btn, button.front-btn, button.up-btn {
+      transition: none !important;
+    }
+    button.tab-active {
+      background: var(--primary) !important;
+      color: var(--primary-foreground) !important;
+      font-weight: 600;
+    }
+    button.pill-active {
+      background: color-mix(in srgb, var(--primary) 20%, transparent) !important;
+      border-color: var(--primary) !important;
+      color: var(--foreground) !important;
+      font-weight: 600;
+    }
+    @keyframes pulseBorder {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+    .drop-ring {
+      animation: pulseBorder 1.4s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased relative overflow-hidden">
+  <!-- Fullscreen WebGL2 Canvas -->
+  <canvas id="gl-canvas"></canvas>
+
+  <!-- Drag & Drop Overlay -->
+  <div id="drop-overlay" class="hidden fixed inset-0 z-50 bg-black/55 glass-panel flex items-center justify-center p-6 pointer-events-none">
+    <div class="drop-ring max-w-md w-full rounded-2xl border-2 border-dashed border-[var(--primary)] bg-[var(--card)]/90 p-8 text-center shadow-2xl">
+      <div class="mx-auto mb-3 w-12 h-12 rounded-xl bg-[var(--primary)]/15 flex items-center justify-center text-[var(--primary)]">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+      </div>
+      <div class="text-base font-semibold text-[var(--foreground)]">여기에 3D 모델 파일을 드롭하세요</div>
+      <div class="text-xs text-[var(--muted-foreground)] mt-1.5">지원 형식: .glb, .gltf, .obj, .stl (자동 정규화 및 실시간 유동 해석)</div>
+    </div>
+  </div>
+
+  <!-- Top-Left Brand + Model Bar -->
+  <header class="fixed top-3 left-3 right-3 sm:right-auto z-20 flex flex-wrap items-center gap-2 pointer-events-none">
+    <div class="pointer-events-auto glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl px-3.5 py-2 flex items-center gap-3 shadow-lg">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center font-bold text-xs tracking-tight">
+          3D
+        </div>
+        <div class="leading-tight">
+          <h1 class="text-xs font-bold tracking-wider uppercase text-[var(--foreground)]">AERO LAB 3D</h1>
+          <div id="active-model-label" class="text-[11px] text-[var(--muted-foreground)] max-w-[160px] truncate">GT 스포츠카 (기본)</div>
+        </div>
+      </div>
+
+      <div class="h-6 w-px bg-[var(--border)] hidden sm:block"></div>
+
+      <!-- Quick Model Presets -->
+      <div class="hidden md:flex items-center gap-1" id="preset-bar">
+        <button data-preset="sportscar" class="preset-btn pill-active px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs transition hover:border-[var(--primary)]">GT 스포츠카</button>
+        <button data-preset="suv" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]">SUV</button>
+        <button data-preset="formula" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]">F1 레이서</button>
+        <button data-preset="airfoil" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]">에어포일</button>
+        <button data-preset="sphere" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]">구체</button>
+      </div>
+
+      <!-- Upload Trigger -->
+      <label for="model-file-input" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-medium hover:opacity-90 transition shadow-sm">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+        </svg>
+        <span>모델 업로드</span>
+      </label>
+      <input id="model-file-input" type="file" accept=".glb,.gltf,.obj,.stl" class="hidden" />
+    </div>
+  </header>
+
+  <!-- Top-Right Camera & Playback Controls -->
+  <div class="fixed top-3 right-3 z-20 flex items-center gap-1.5">
+    <div class="hidden lg:flex items-center gap-1 glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl p-1 shadow-lg">
+      <button data-cam="iso" class="cam-btn px-2.5 py-1 rounded-lg text-xs text-[var(--foreground)] hover:bg-[var(--background)]/70 transition" title="3/4 쿼터 뷰">3/4</button>
+      <button data-cam="side" class="cam-btn px-2.5 py-1 rounded-lg text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)]/70 transition" title="측면 뷰">측면</button>
+      <button data-cam="front" class="cam-btn px-2.5 py-1 rounded-lg text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)]/70 transition" title="정면 뷰">정면</button>
+      <button data-cam="top" class="cam-btn px-2.5 py-1 rounded-lg text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)]/70 transition" title="상단 뷰">상단</button>
+      <button data-cam="rear" class="cam-btn px-2.5 py-1 rounded-lg text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)]/70 transition" title="후면 와류 뷰">후류</button>
+    </div>
+
+    <button id="btn-play-pause" class="glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl px-2.5 py-2 text-xs font-medium hover:border-[var(--primary)] transition shadow-lg flex items-center gap-1.5" title="유동 재생 / 일시정지">
+      <span id="play-icon">❚❚</span>
+      <span class="hidden sm:inline" id="play-label">실행 중</span>
+    </button>
+
+    <button id="btn-toggle-theme" class="glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl px-2.5 py-2 text-xs font-medium hover:border-[var(--primary)] transition shadow-lg" title="다크 / 라이트 테마 전환">
+      라이트
+    </button>
+
+    <button id="btn-toggle-panel" class="glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl px-2.5 py-2 text-xs font-medium hover:border-[var(--primary)] transition shadow-lg" title="제어 패널 토글">
+      패널
+    </button>
+  </div>
+
+  <!-- Right Collapsible Control Rail -->
+  <aside id="control-panel" class="fixed top-16 right-3 bottom-24 z-20 w-[296px] max-w-[calc(100vw-24px)] glass-panel bg-[var(--card)]/88 border border-[var(--border)] rounded-2xl shadow-xl flex flex-col overflow-hidden transition-transform duration-200">
+    <!-- Tabs -->
+    <div class="grid grid-cols-3 gap-1 p-1.5 border-b border-[var(--border)] bg-[var(--background)]/40 text-xs font-medium">
+      <button data-tab="flow" class="tab-btn tab-active py-1.5 rounded-lg transition">풍동 조건</button>
+      <button data-tab="visual" class="tab-btn py-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition">시각화</button>
+      <button data-tab="model" class="tab-btn py-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition">모델/업로드</button>
+    </div>
+
+    <!-- Tab Contents -->
+    <div class="flex-1 overflow-y-auto aero-scroll p-3.5 space-y-4 text-xs">
+      <!-- TAB 1: FLOW CONDITIONS -->
+      <section id="tab-flow" class="space-y-4">
+        <!-- Wind Speed -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label for="slider-speed" class="font-medium text-[var(--foreground)]">풍속 (Wind Speed)</label>
+            <span id="val-speed" class="font-mono tabular-nums text-[var(--foreground)] font-semibold">120 km/h · 33.3 m/s</span>
+          </div>
+          <input id="slider-speed" type="range" min="10" max="360" step="2" value="120" class="aero-slider" />
+          <div class="grid grid-cols-4 gap-1">
+            <button data-speed="60" class="speed-preset py-1 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)] transition">60</button>
+            <button data-speed="120" class="speed-preset py-1 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)] transition">120</button>
+            <button data-speed="200" class="speed-preset py-1 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)] transition">200</button>
+            <button data-speed="300" class="speed-preset py-1 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)] transition">300</button>
+          </div>
+        </div>
+
+        <!-- Yaw Angle -->
+        <div class="space-y-1.5 pt-2 border-t border-[var(--border)]">
+          <div class="flex items-center justify-between">
+            <label for="slider-yaw" class="font-medium text-[var(--foreground)]">요각 / 횡풍각 (Yaw)</label>
+            <span id="val-yaw" class="font-mono tabular-nums text-[var(--foreground)]">0.0°</span>
+          </div>
+          <input id="slider-yaw" type="range" min="-35" max="35" step="1" value="0" class="aero-slider" />
+        </div>
+
+        <!-- Pitch Angle -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label for="slider-pitch" class="font-medium text-[var(--foreground)]">피치 / 받음각 (Pitch)</label>
+            <span id="val-pitch" class="font-mono tabular-nums text-[var(--foreground)]">0.0°</span>
+          </div>
+          <input id="slider-pitch" type="range" min="-12" max="12" step="0.5" value="0" class="aero-slider" />
+        </div>
+
+        <!-- Ride Height -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <label for="slider-clearance" class="font-medium text-[var(--foreground)]">지상고 오프셋 (Ride Height)</label>
+            <span id="val-clearance" class="font-mono tabular-nums text-[var(--foreground)]">0.00 m</span>
+          </div>
+          <input id="slider-clearance" type="range" min="0" max="0.60" step="0.02" value="0" class="aero-slider" />
+        </div>
+
+        <!-- Air Density -->
+        <div class="space-y-1.5 pt-2 border-t border-[var(--border)]">
+          <div class="flex items-center justify-between">
+            <label for="slider-density" class="font-medium text-[var(--foreground)]">공기 밀도 (ρ)</label>
+            <span id="val-density" class="font-mono tabular-nums text-[var(--foreground)]">1.225 kg/m³</span>
+          </div>
+          <input id="slider-density" type="range" min="0.80" max="1.50" step="0.005" value="1.225" class="aero-slider" />
+        </div>
+
+        <!-- Rolling Road Toggle -->
+        <div class="flex items-center justify-between pt-2 border-t border-[var(--border)]">
+          <div>
+            <div class="font-medium text-[var(--foreground)]">롤링 로드 (이동 바닥)</div>
+            <div class="text-[11px] text-[var(--muted-foreground)]">지면 벨트 및 바퀴 회전 연동</div>
+          </div>
+          <input id="chk-rolling-road" type="checkbox" checked class="w-4 h-4 accent-[var(--primary)] cursor-pointer" />
+        </div>
+
+        <button id="btn-reset-flow" class="w-full py-1.5 rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)] transition">
+          풍동 조건 초기화
+        </button>
+      </section>
+
+      <!-- TAB 2: VISUALIZATION -->
+      <section id="tab-visual" class="hidden space-y-4">
+        <!-- Surface Shading Mode -->
+        <div class="space-y-1.5">
+          <div class="font-medium text-[var(--foreground)]">모델 표면 표시 모드</div>
+          <div class="grid grid-cols-3 gap-1">
+            <button data-surface="studio" class="surface-btn pill-active py-1.5 rounded-lg border border-[var(--border)] text-[11px] transition">스튜디오</button>
+            <button data-surface="pressure" class="surface-btn py-1.5 rounded-lg border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">표면 압력(Cp)</button>
+            <button data-surface="wireframe" class="surface-btn py-1.5 rounded-lg border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">와이어프레임</button>
+          </div>
+        </div>
+
+        <!-- Flow Color Mode -->
+        <div class="space-y-1.5 pt-2 border-t border-[var(--border)]">
+          <div class="font-medium text-[var(--foreground)]">유동 색상 기준</div>
+          <div class="grid grid-cols-2 gap-1">
+            <button data-colormap="velocity" class="colormap-btn pill-active py-1.5 rounded-lg border border-[var(--border)] text-[11px] transition">유속 (Velocity)</button>
+            <button data-colormap="pressure" class="colormap-btn py-1.5 rounded-lg border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">압력 계수 (Cp)</button>
+            <button data-colormap="turbulence" class="colormap-btn py-1.5 rounded-lg border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">난류/와류 강도</button>
+            <button data-colormap="smoke" class="colormap-btn py-1.5 rounded-lg border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">화이트 스모크</button>
+          </div>
+        </div>
+
+        <!-- Streamlines -->
+        <div class="space-y-2.5 pt-2 border-t border-[var(--border)]">
+          <div class="flex items-center justify-between">
+            <span class="font-medium text-[var(--foreground)]">3D 스모크 유선 (Streamlines)</span>
+            <input id="chk-streamlines" type="checkbox" checked class="w-4 h-4 accent-[var(--primary)] cursor-pointer" />
+          </div>
+          <div class="grid grid-cols-3 gap-1">
+            <button data-rake="vertical" class="rake-btn pill-active py-1 rounded-md border border-[var(--border)] text-[11px] transition">수직 콤브</button>
+            <button data-rake="horizontal" class="rake-btn py-1 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">수평 콤브</button>
+            <button data-rake="grid" class="rake-btn py-1 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">3D 매트릭스</button>
+          </div>
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-[var(--muted-foreground)]">
+              <span>유선 개수</span>
+              <span id="val-stream-count" class="font-mono tabular-nums text-[var(--foreground)]">24개</span>
+            </div>
+            <input id="slider-stream-count" type="range" min="8" max="64" step="4" value="24" class="aero-slider" />
+          </div>
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-[var(--muted-foreground)]">
+              <span>레이크 위치 오프셋</span>
+              <span id="val-rake-offset" class="font-mono tabular-nums text-[var(--foreground)]">0.00 m</span>
+            </div>
+            <input id="slider-rake-offset" type="range" min="-1.1" max="1.1" step="0.05" value="0" class="aero-slider" />
+          </div>
+        </div>
+
+        <!-- Particles -->
+        <div class="space-y-2 pt-2 border-t border-[var(--border)]">
+          <div class="flex items-center justify-between">
+            <span class="font-medium text-[var(--foreground)]">3D 기류 파티클</span>
+            <input id="chk-particles" type="checkbox" checked class="w-4 h-4 accent-[var(--primary)] cursor-pointer" />
+          </div>
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-[var(--muted-foreground)]">
+              <span>입자 밀도</span>
+              <span id="val-particles" class="font-mono tabular-nums text-[var(--foreground)]">1800</span>
+            </div>
+            <input id="slider-particles" type="range" min="400" max="3600" step="200" value="1800" class="aero-slider" />
+          </div>
+        </div>
+
+        <!-- 2D Cut Plane Slice -->
+        <div class="space-y-2 pt-2 border-t border-[var(--border)]">
+          <div class="font-medium text-[var(--foreground)]">단면 유동 슬라이스 (Cut Plane)</div>
+          <div class="grid grid-cols-4 gap-1">
+            <button data-slice="off" class="slice-btn pill-active py-1 rounded-md border border-[var(--border)] text-[11px]">꺼짐</button>
+            <button data-slice="z" class="slice-btn py-1 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted-foreground)]">종단(Z)</button>
+            <button data-slice="y" class="slice-btn py-1 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">수평(Y)</button>
+            <button data-slice="x" class="slice-btn py-1 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted-foreground)] transition">후류(X)</button>
+          </div>
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-[var(--muted-foreground)]">
+              <span>슬라이스 위치</span>
+              <span id="val-slice-pos" class="font-mono tabular-nums text-[var(--foreground)]">0.00 m</span>
+            </div>
+            <input id="slider-slice-pos" type="range" min="-1" max="1" step="0.02" value="0" class="aero-slider" />
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: MODEL & UPLOAD -->
+      <section id="tab-model" class="hidden space-y-4">
+        <!-- Upload Dropzone -->
+        <label for="model-file-input" class="block cursor-pointer rounded-xl border border-dashed border-[var(--border)] hover:border-[var(--primary)] bg-[var(--background)]/50 p-3.5 text-center transition">
+          <div class="text-xs font-semibold text-[var(--foreground)]">사용자 3D 모델 업로드</div>
+          <div class="text-[11px] text-[var(--muted-foreground)] mt-1">.glb · .gltf · .obj · .stl 파일 선택 또는 드래그</div>
+        </label>
+
+        <!-- Mobile/Compact Presets -->
+        <div class="space-y-1.5">
+          <div class="font-medium text-[var(--foreground)]">기본 제공 모델</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button data-preset="sportscar" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)] transition">GT 스포츠카</button>
+            <button data-preset="suv" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)] transition">SUV</button>
+            <button data-preset="formula" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)] transition">F1 레이서</button>
+            <button data-preset="airfoil" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)] transition">NACA 에어포일</button>
+            <button data-preset="sphere" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)] transition col-span-2">표준 구체 (Reference Sphere)</button>
+          </div>
+        </div>
+
+        <!-- Uploaded/Active Model Alignment -->
+        <div class="space-y-2.5 pt-2 border-t border-[var(--border)]">
+          <div class="font-medium text-[var(--foreground)]">모델 방향 및 크기 보정</div>
+          <div class="space-y-1">
+            <div class="text-[11px] text-[var(--muted-foreground)]">전면(바람 방향) 축 정렬</div>
+            <div class="grid grid-cols-4 gap-1">
+              <button data-front="-x" class="front-btn pill-active py-1 rounded-md border border-[var(--border)] text-[11px] font-mono">-X</button>
+              <button data-front="+x" class="front-btn py-1 rounded-md border border-[var(--border)] text-[11px] font-mono text-[var(--muted-foreground)]">+X</button>
+              <button data-front="-z" class="front-btn py-1 rounded-md border border-[var(--border)] text-[11px] font-mono text-[var(--muted-foreground)]">-Z</button>
+              <button data-front="+z" class="front-btn py-1 rounded-md border border-[var(--border)] text-[11px] font-mono text-[var(--muted-foreground)]">+Z</button>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-[11px] text-[var(--muted-foreground)]">상단 축 (Up Axis)</div>
+            <div class="grid grid-cols-2 gap-1">
+              <button data-up="y" class="up-btn pill-active py-1 rounded-md border border-[var(--border)] text-[11px]">Y-Up (표준)</button>
+              <button data-up="z" class="up-btn py-1 rounded-md border border-[var(--border)] text-[11px] text-[var(--muted-foreground)]">Z-Up (CAD/Blender)</button>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-[var(--muted-foreground)]">
+              <span>모델 배율 (Scale)</span>
+              <span id="val-scale" class="font-mono tabular-nums text-[var(--foreground)]">1.00x</span>
+            </div>
+            <input id="slider-scale" type="range" min="0.50" max="1.60" step="0.05" value="1.00" class="aero-slider" />
+          </div>
+        </div>
+
+        <!-- Mesh Stats -->
+        <div class="rounded-xl bg-[var(--background)]/60 border border-[var(--border)] p-2.5 space-y-1 text-[11px]">
+          <div class="font-medium text-[var(--foreground)] mb-1">메시 정보</div>
+          <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">모델명</span><span id="stat-name" class="font-mono truncate max-w-[155px]">GT 스포츠카</span></div>
+          <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">삼각형 수</span><span id="stat-tris" class="font-mono tabular-nums">-</span></div>
+          <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">치수 (L×W×H)</span><span id="stat-dims" class="font-mono tabular-nums">-</span></div>
+          <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">CFD 해석 시간</span><span id="stat-solve-ms" class="font-mono tabular-nums">-</span></div>
+        </div>
+
+        <button id="btn-export-obj" class="w-full py-1.5 rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)] transition">
+          현재 모델 .OBJ로 내보내기 (테스트용)
+        </button>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Bottom Telemetry HUD -->
+  <footer class="fixed bottom-3 left-3 right-3 z-20 flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-2 pointer-events-none">
+    <!-- Aerodynamic Telemetry Cards -->
+    <div class="pointer-events-auto glass-panel bg-[var(--card)]/88 border border-[var(--border)] rounded-2xl px-3.5 py-2.5 shadow-xl flex flex-wrap items-center gap-x-5 gap-y-2">
+      <div>
+        <div class="text-[11px] text-[var(--muted-foreground)]">항력 계수 (Cd)</div>
+        <div class="flex items-baseline gap-1.5">
+          <span id="hud-cd" class="text-base font-bold font-mono tabular-nums text-[var(--foreground)]">0.295</span>
+          <span id="hud-fd" class="text-[11px] font-mono tabular-nums text-[var(--muted-foreground)]">412 N</span>
+        </div>
+      </div>
+
+      <div class="h-7 w-px bg-[var(--border)] hidden sm:block"></div>
+
+      <div>
+        <div id="hud-cl-label" class="text-[11px] text-[var(--muted-foreground)]">다운포스 (CL)</div>
+        <div class="flex items-baseline gap-1.5">
+          <span id="hud-cl" class="text-base font-bold font-mono tabular-nums text-[var(--foreground)]">-0.310</span>
+          <span id="hud-fl" class="text-[11px] font-mono tabular-nums text-[var(--muted-foreground)]">433 N</span>
+        </div>
+      </div>
+
+      <div class="h-7 w-px bg-[var(--border)] hidden sm:block"></div>
+
+      <div>
+        <div class="text-[11px] text-[var(--muted-foreground)]">전면 투영 면적</div>
+        <div id="hud-area" class="text-sm font-semibold font-mono tabular-nums text-[var(--foreground)]">2.04 m²</div>
+      </div>
+
+      <div class="h-7 w-px bg-[var(--border)] hidden md:block"></div>
+
+      <div class="hidden md:block">
+        <div class="text-[11px] text-[var(--muted-foreground)]">횡력 (Fy) / 동압 (q)</div>
+        <div class="text-xs font-mono tabular-nums text-[var(--foreground)]">
+          <span id="hud-fy">0 N</span> · <span id="hud-q">681 Pa</span>
+        </div>
+      </div>
+
+      <div class="h-7 w-px bg-[var(--border)] hidden xl:block"></div>
+
+      <div class="hidden xl:block">
+        <div class="text-[11px] text-[var(--muted-foreground)]">레이놀즈 수 (Re)</div>
+        <div id="hud-re" class="text-xs font-mono tabular-nums text-[var(--foreground)]">1.02×10⁷</div>
+      </div>
+    </div>
+
+    <!-- Right HUD: Centerline Cp Sparkline + Colorbar Legend -->
+    <div class="pointer-events-auto glass-panel bg-[var(--card)]/88 border border-[var(--border)] rounded-2xl px-3.5 py-2 shadow-xl flex items-center gap-4">
+      <div class="hidden sm:block w-[170px]">
+        <div class="flex justify-between text-[10px] text-[var(--muted-foreground)] mb-0.5">
+          <span>중심선 압력 분포 (Cp)</span>
+          <span>전면 → 후면</span>
+        </div>
+        <canvas id="cp-sparkline" width="170" height="34" class="block w-[170px] h-[34px]"></canvas>
+      </div>
+
+      <div class="w-[150px]">
+        <div class="flex justify-between text-[10px] text-[var(--muted-foreground)] mb-1">
+          <span id="legend-title">유속 (m/s)</span>
+          <span id="legend-unit" class="font-mono">U∞ 33.3</span>
+        </div>
+        <div id="legend-bar" class="h-2.5 w-full rounded-full border border-[var(--border)]" style="background: linear-gradient(90deg, #163b8c, #189ad3, #27c784, #f5c23b, #e33b2e);"></div>
+        <div class="flex justify-between text-[10px] font-mono tabular-nums text-[var(--muted-foreground)] mt-0.5">
+          <span id="legend-min">0</span>
+          <span id="legend-mid">25</span>
+          <span id="legend-max">50</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Status Toast -->
+  <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 pointer-events-none opacity-0 transition-opacity duration-200 glass-panel bg-[var(--card)] border border-[var(--border)] rounded-xl px-4 py-2 text-xs font-medium shadow-xl"></div>
+
+  <script>
+  'use strict';
+
+  /* ============================================================================
+   * 1. MATH UTILITIES (Vec3, Mat4)
+   * ========================================================================== */
+  const Mat4 = {
+    identity() {
+      const m = new Float32Array(16);
+      m[0] = m[5] = m[10] = m[15] = 1;
+      return m;
+    },
+    multiply(a, b) {
+      const out = new Float32Array(16);
+      for (let c = 0; c < 4; c++) {
+        for (let r = 0; r < 4; r++) {
+          out[c * 4 + r] =
+            a[0 * 4 + r] * b[c * 4 + 0] +
+            a[1 * 4 + r] * b[c * 4 + 1] +
+            a[2 * 4 + r] * b[c * 4 + 2] +
+            a[3 * 4 + r] * b[c * 4 + 3];
+        }
+      }
+      return out;
+    },
+    perspective(fovyRad, aspect, near, far) {
+      const f = 1.0 / Math.tan(fovyRad / 2);
+      const nf = 1 / (near - far);
+      const m = new Float32Array(16);
+      m[0] = f / aspect;
+      m[5] = f;
+      m[10] = (far + near) * nf;
+      m[11] = -1;
+      m[14] = 2 * far * near * nf;
+      return m;
+    },
+    lookAt(eye, target, up) {
+      let zx = eye[0] - target[0], zy = eye[1] - target[1], zz = eye[2] - target[2];
+      let len = Math.hypot(zx, zy, zz) || 1;
+      zx /= len; zy /= len; zz /= len;
+      let xx = up[1] * zz - up[2] * zy;
+      let xy = up[2] * zx - up[0] * zz;
+      let xz = up[0] * zy - up[1] * zx;
+      len = Math.hypot(xx, xy, xz) || 1;
+      xx /= len; xy /= len; xz /= len;
+      const yx = zy * xz - zz * xy;
+      const yy = zz * xx - zx * xz;
+      const yz = zx * xy - zy * xx;
+      const m = new Float32Array(16);
+      m[0] = xx; m[1] = yx; m[2] = zx; m[3] = 0;
+      m[4] = xy; m[5] = yy; m[6] = zy; m[7] = 0;
+      m[8] = xz; m[9] = yz; m[10] = zz; m[11] = 0;
+      m[12] = -(xx * eye[0] + xy * eye[1] + xz * eye[2]);
+      m[13] = -(yx * eye[0] + yy * eye[1] + yz * eye[2]);
+      m[14] = -(zx * eye[0] + zy * eye[1] + zz * eye[2]);
+      m[15] = 1;
+      return m;
+    },
+    fromTRS(t, q, s) {
+      const x = q[0], y = q[1], z = q[2], w = q[3];
+      const x2 = x + x, y2 = y + y, z2 = z + z;
+      const xx = x * x2, xy = x * y2, xz = x * z2;
+      const yy = y * y2, yz = y * z2, zz = z * z2;
+      const wx = w * x2, wy = w * y2, wz = w * z2;
+      const sx = s[0], sy = s[1], sz = s[2];
+      const m = new Float32Array(16);
+      m[0] = (1 - (yy + zz)) * sx;
+      m[1] = (xy + wz) * sx;
+      m[2] = (xz - wy) * sx;
+      m[3] = 0;
+      m[4] = (xy - wz) * sy;
+      m[5] = (1 - (xx + zz)) * sy;
+      m[6] = (yz + wx) * sy;
+      m[7] = 0;
+      m[8] = (xz + wy) * sz;
+      m[9] = (yz - wx) * sz;
+      m[10] = (1 - (xx + yy)) * sz;
+      m[11] = 0;
+      m[12] = t[0];
+      m[13] = t[1];
+      m[14] = t[2];
+      m[15] = 1;
+      return m;
+    },
+    transformPoint(m, x, y, z) {
+      return [
+        m[0] * x + m[4] * y + m[8] * z + m[12],
+        m[1] * x + m[5] * y + m[9] * z + m[13],
+        m[2] * x + m[6] * y + m[10] * z + m[14],
+      ];
+    },
+    transformDir(m, x, y, z) {
+      const nx = m[0] * x + m[4] * y + m[8] * z;
+      const ny = m[1] * x + m[5] * y + m[9] * z;
+      const nz = m[2] * x + m[6] * y + m[10] * z;
+      const l = Math.hypot(nx, ny, nz) || 1;
+      return [nx / l, ny / l, nz / l];
+    }
+  };
+
+  function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function smoothstep(e0, e1, x) {
+    const t = clamp((x - e0) / (e1 - e0), 0, 1);
+    return t * t * (3 - 2 * t);
+  }
+
+  /* ============================================================================
+   * 2. MESH BUILDER & GEOMETRY UTILITIES
+   * ========================================================================== */
+  class MeshBuilder {
+    constructor() {
+      this.pos = [];
+      this.norm = [];
+      this.idx = [];
+      this.part = [];
+    }
+    addVertex(x, y, z, nx, ny, nz, partId = 0) {
+      const i = this.pos.length / 3;
+      this.pos.push(x, y, z);
+      this.norm.push(nx, ny, nz);
+      this.part.push(partId);
+      return i;
+    }
+    addTri(a, b, c) {
+      this.idx.push(a, b, c);
+    }
+    addQuad(a, b, c, d) {
+      // Both triangles end with vertex c (same CCW winding as a,c,d) so flat material IDs never sawtooth across quads
+      this.idx.push(a, b, c, d, a, c);
+    }
+    addBox(cx, cy, cz, sx, sy, sz, partId = 0, rotZ = 0, rotY = 0) {
+      const hx = sx * 0.5, hy = sy * 0.5, hz = sz * 0.5;
+      const czR = Math.cos(rotZ), szR = Math.sin(rotZ);
+      const cyR = Math.cos(rotY), syR = Math.sin(rotY);
+      const xform = (x, y, z) => {
+        const x1 = x * czR - y * szR;
+        const y1 = x * szR + y * czR;
+        const x2 = x1 * cyR + z * syR;
+        const z2 = -x1 * syR + z * cyR;
+        return [x2 + cx, y1 + cy, z2 + cz];
+      };
+      const xnorm = (x, y, z) => {
+        const x1 = x * czR - y * szR;
+        const y1 = x * szR + y * czR;
+        const x2 = x1 * cyR + z * syR;
+        const z2 = -x1 * syR + z * cyR;
+        return [x2, y1, z2];
+      };
+      const faces = [
+        { n: [1, 0, 0], v: [[hx,-hy,-hz],[hx,hy,-hz],[hx,hy,hz],[hx,-hy,hz]] },
+        { n: [-1, 0, 0], v: [[-hx,-hy,hz],[-hx,hy,hz],[-hx,hy,-hz],[-hx,-hy,-hz]] },
+        { n: [0, 1, 0], v: [[-hx,hy,-hz],[-hx,hy,hz],[hx,hy,hz],[hx,hy,-hz]] },
+        { n: [0, -1, 0], v: [[-hx,-hy,hz],[-hx,-hy,-hz],[hx,-hy,-hz],[hx,-hy,hz]] },
+        { n: [0, 0, 1], v: [[-hx,-hy,hz],[hx,-hy,hz],[hx,hy,hz],[-hx,hy,hz]] },
+        { n: [0, 0, -1], v: [[hx,-hy,-hz],[-hx,-hy,-hz],[-hx,hy,-hz],[hx,hy,-hz]] },
+      ];
+      for (const f of faces) {
+        const [nx, ny, nz] = xnorm(...f.n);
+        const ids = f.v.map(p => {
+          const [px, py, pz] = xform(...p);
+          return this.addVertex(px, py, pz, nx, ny, nz, partId);
+        });
+        this.addQuad(ids[0], ids[1], ids[2], ids[3]);
+      }
+    }
+    addWheel(cx, cy, cz, radius, width, tirePart = 1, rimPart = 5) {
+      const segs = 28;
+      const hw = width * 0.5;
+      const rimR = radius * 0.64;
+      const treadInset = width * 0.08;
+      // Tire outer tread + rounded sidewalls
+      const ringProfile = [
+        [rimR, -hw * 0.88],
+        [radius * 0.94, -hw],
+        [radius, -hw + treadInset],
+        [radius, hw - treadInset],
+        [radius * 0.94, hw],
+        [rimR, hw * 0.88],
+      ];
+      const rings = [];
+      for (let r = 0; r < ringProfile.length; r++) {
+        const [rad, zOff] = ringProfile[r];
+        const ring = [];
+        for (let i = 0; i <= segs; i++) {
+          const a = (i / segs) * Math.PI * 2;
+          const ca = Math.cos(a), sa = Math.sin(a);
+          const x = cx + ca * rad;
+          const y = cy + sa * rad;
+          const z = cz + zOff;
+          let nx = ca, ny = sa, nz = 0;
+          if (r === 0) { nx = ca * 0.2; ny = sa * 0.2; nz = -0.98; }
+          else if (r === 1) { nx = ca * 0.7; ny = sa * 0.7; nz = -0.7; }
+          else if (r === 4) { nx = ca * 0.7; ny = sa * 0.7; nz = 0.7; }
+          else if (r === 5) { nx = ca * 0.2; ny = sa * 0.2; nz = 0.98; }
+          ring.push(this.addVertex(x, y, z, nx, ny, nz, tirePart));
+        }
+        rings.push(ring);
+      }
+      for (let r = 0; r < rings.length - 1; r++) {
+        for (let i = 0; i < segs; i++) {
+          this.addQuad(rings[r][i], rings[r][i + 1], rings[r + 1][i + 1], rings[r + 1][i]);
+        }
+      }
+      // Alloy Rim Face (both sides + hub dish + 5 spokes on outer face)
+      for (const side of [-1, 1]) {
+        const zFace = cz + side * hw * 0.76;
+        const cIdx = this.addVertex(cx, cy, zFace - side * 0.03, 0, 0, side, rimPart);
+        const rimRing = [];
+        for (let i = 0; i <= segs; i++) {
+          const a = (i / segs) * Math.PI * 2;
+          rimRing.push(this.addVertex(cx + Math.cos(a) * rimR, cy + Math.sin(a) * rimR, zFace, 0, 0, side, rimPart));
+        }
+        for (let i = 0; i < segs; i++) {
+          if (side > 0) this.addTri(cIdx, rimRing[i], rimRing[i + 1]);
+          else this.addTri(cIdx, rimRing[i + 1], rimRing[i]);
+        }
+      }
+      // 5 Raised Rim Spokes on outward-facing side
+      const outSide = cz >= 0 ? 1 : -1;
+      const zSpoke = cz + outSide * (hw * 0.80);
+      for (let s = 0; s < 5; s++) {
+        const ang = (s / 5) * Math.PI * 2;
+        const midX = cx + Math.cos(ang) * rimR * 0.48;
+        const midY = cy + Math.sin(ang) * rimR * 0.48;
+        this.addBox(midX, midY, zSpoke, rimR * 0.88, radius * 0.11, 0.028, rimPart, ang, 0);
+      }
+    }
+    addExtrudedAirfoil(xCenter, yCenter, chord, thickness, camber, span, pitchRad, partId = 3, withEndplates = false) {
+      const nProf = 26;
+      const prof = [];
+      for (let i = 0; i < nProf; i++) {
+        const beta = (i / nProf) * Math.PI * 2;
+        const u = 0.5 * (1 - Math.cos(beta));
+        const isUpper = beta <= Math.PI;
+        const yt = 5 * thickness * (0.2969 * Math.sqrt(u) - 0.1260 * u - 0.3516 * u * u + 0.2843 * u * u * u - 0.1015 * u * u * u * u);
+        const yc = camber * 4 * u * (1 - u);
+        const lx = (u - 0.35) * chord;
+        const ly = (yc + (isUpper ? yt : -yt)) * chord;
+        const cp = Math.cos(pitchRad), sp = Math.sin(pitchRad);
+        prof.push([xCenter + lx * cp - ly * sp, yCenter + lx * sp + ly * cp]);
+      }
+      const hz = span * 0.5;
+      const zSteps = 8;
+      const rings = [];
+      for (let k = 0; k <= zSteps; k++) {
+        const z = -hz + (k / zSteps) * span;
+        const ring = [];
+        for (let i = 0; i < nProf; i++) {
+          const pPrev = prof[(i - 1 + nProf) % nProf];
+          const pNext = prof[(i + 1) % nProf];
+          const tx = pNext[0] - pPrev[0], ty = pNext[1] - pPrev[1];
+          const l = Math.hypot(tx, ty) || 1;
+          ring.push(this.addVertex(prof[i][0], prof[i][1], z, -ty / l, tx / l, 0, partId));
+        }
+        rings.push(ring);
+      }
+      for (let k = 0; k < zSteps; k++) {
+        for (let i = 0; i < nProf; i++) {
+          const j = (i + 1) % nProf;
+          this.addQuad(rings[k][i], rings[k][j], rings[k + 1][j], rings[k + 1][i]);
+        }
+      }
+      // Side caps
+      for (const side of [-1, 1]) {
+        const z = side * hz;
+        const cIdx = this.addVertex(xCenter, yCenter, z, 0, 0, side, partId);
+        const capRing = prof.map(p => this.addVertex(p[0], p[1], z, 0, 0, side, partId));
+        for (let i = 0; i < nProf; i++) {
+          const j = (i + 1) % nProf;
+          if (side > 0) this.addTri(cIdx, capRing[i], capRing[j]);
+          else this.addTri(cIdx, capRing[j], capRing[i]);
+        }
+      }
+      if (withEndplates) {
+        const epH = Math.max(chord * 0.55, 0.22);
+        this.addBox(xCenter + chord * 0.1, yCenter - epH * 0.08, -hz - 0.014, chord * 1.18, epH, 0.022, partId);
+        this.addBox(xCenter + chord * 0.1, yCenter - epH * 0.08, hz + 0.014, chord * 1.18, epH, 0.022, partId);
+      }
+    }
+    build(name, hasWheels = false, wheelMeta = null) {
+      return {
+        name,
+        positions: new Float32Array(this.pos),
+        normals: new Float32Array(this.norm),
+        indices: new Uint32Array(this.idx),
+        partIds: new Uint8Array(this.part),
+        hasWheels,
+        wheelMeta,
+      };
+    }
+  }
+
+  function recomputeSmoothNormals(positions, indices) {
+    const vCount = positions.length / 3;
+    const normals = new Float32Array(vCount * 3);
+    for (let i = 0; i < indices.length; i += 3) {
+      const a = indices[i] * 3, b = indices[i + 1] * 3, c = indices[i + 2] * 3;
+      const ax = positions[a], ay = positions[a + 1], az = positions[a + 2];
+      const e1x = positions[b] - ax, e1y = positions[b + 1] - ay, e1z = positions[b + 2] - az;
+      const e2x = positions[c] - ax, e2y = positions[c + 1] - ay, e2z = positions[c + 2] - az;
+      const nx = e1y * e2z - e1z * e2y;
+      const ny = e1z * e2x - e1x * e2z;
+      const nz = e1x * e2y - e1y * e2x;
+      normals[a] += nx; normals[a + 1] += ny; normals[a + 2] += nz;
+      normals[b] += nx; normals[b + 1] += ny; normals[b + 2] += nz;
+      normals[c] += nx; normals[c + 1] += ny; normals[c + 2] += nz;
+    }
+    for (let i = 0; i < vCount; i++) {
+      const j = i * 3;
+      const l = Math.hypot(normals[j], normals[j + 1], normals[j + 2]);
+      if (l > 1e-8) {
+        normals[j] /= l; normals[j + 1] /= l; normals[j + 2] /= l;
+      } else {
+        normals[j] = 0; normals[j + 1] = 1; normals[j + 2] = 0;
+      }
+    }
+    return normals;
+  }
+
+  function weldAndComputeNormals(rawPositions, rawIndices) {
+    // Weld coincident vertices (within 1e-4) for smooth shading on STL/non-indexed meshes
+    const vCount = rawPositions.length / 3;
+    const map = new Map();
+    const weldedPos = [];
+    const remap = new Uint32Array(vCount);
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (let i = 0; i < vCount; i++) {
+      const x = rawPositions[i * 3], y = rawPositions[i * 3 + 1], z = rawPositions[i * 3 + 2];
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+    }
+    const diag = Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) || 1;
+    const qScale = 2500 / diag;
+    for (let i = 0; i < vCount; i++) {
+      const x = rawPositions[i * 3], y = rawPositions[i * 3 + 1], z = rawPositions[i * 3 + 2];
+      const key = `${Math.round(x * qScale)},${Math.round(y * qScale)},${Math.round(z * qScale)}`;
+      let id = map.get(key);
+      if (id === undefined) {
+        id = weldedPos.length / 3;
+        map.set(key, id);
+        weldedPos.push(x, y, z);
+      }
+      remap[i] = id;
+    }
+    const indices = new Uint32Array(rawIndices.length);
+    for (let i = 0; i < rawIndices.length; i++) indices[i] = remap[rawIndices[i]];
+    const positions = new Float32Array(weldedPos);
+    const normals = recomputeSmoothNormals(positions, indices);
+    return { positions, normals, indices };
+  }
+
+  /* ============================================================================
+   * 3. PROCEDURAL 3D MODELS (GT Sports Car, SUV, F1 Racer, Airfoil, Sphere)
+   * ========================================================================== */
+  function buildLoftedVehicle(mb, config) {
+    const { stations, profileFn, partFn } = config;
+    const nX = stations.length;
+    const nAng = 32;
+    const rings = [];
+    for (let ix = 0; ix < nX; ix++) {
+      const x = stations[ix];
+      const ring = [];
+      for (let ia = 0; ia <= nAng; ia++) {
+        const theta = (ia / nAng) * Math.PI * 2; // 0=+Z side, PI/2=+Y top, PI=-Z side, 3PI/2=-Y bottom
+        const pt = profileFn(x, theta);
+        const pid = partFn ? partFn(x, pt[1], pt[2], theta) : 0;
+        ring.push(mb.addVertex(x, pt[1], pt[2], 0, 1, 0, pid));
+      }
+      rings.push(ring);
+    }
+    for (let ix = 0; ix < nX - 1; ix++) {
+      for (let ia = 0; ia < nAng; ia++) {
+        mb.addQuad(rings[ix][ia], rings[ix + 1][ia], rings[ix + 1][ia + 1], rings[ix][ia + 1]);
+      }
+    }
+    // Front & rear end caps
+    const frontCenter = mb.addVertex(stations[0] - 0.015, config.frontCapY, 0, -1, 0, 0, 0);
+    for (let ia = 0; ia < nAng; ia++) {
+      mb.addTri(frontCenter, rings[0][ia + 1], rings[0][ia]);
+    }
+    const rearCenter = mb.addVertex(stations[nX - 1] + 0.01, config.rearCapY, 0, 1, 0, 0, 3);
+    for (let ia = 0; ia < nAng; ia++) {
+      mb.addTri(rearCenter, rings[nX - 1][ia], rings[nX - 1][ia + 1]);
+    }
+  }
+
+  function createSportsCarMesh() {
+    const mb = new MeshBuilder();
+    const stations = [];
+    for (let i = 0; i <= 44; i++) {
+      const t = i / 44;
+      stations.push(-2.22 + t * 4.44);
+    }
+
+    function topY(x) {
+      if (x < -1.95) return lerp(0.32, 0.56, smoothstep(-2.22, -1.95, x));
+      if (x < -1.02) return lerp(0.56, 0.78, smoothstep(-1.95, -1.02, x));
+      if (x < -0.18) return lerp(0.78, 1.24, smoothstep(-1.02, -0.18, x));
+      if (x < 0.72)  return lerp(1.24, 1.12, smoothstep(-0.18, 0.72, x));
+      if (x < 1.55)  return lerp(1.12, 0.86, smoothstep(0.72, 1.55, x));
+      return lerp(0.86, 0.89, smoothstep(1.55, 2.22, x));
+    }
+    function beltY(x) {
+      if (x < -1.85) return lerp(0.30, 0.58, smoothstep(-2.22, -1.85, x));
+      if (x < -1.05) return lerp(0.58, 0.76, smoothstep(-1.85, -1.05, x));
+      if (x < 1.45)  return lerp(0.76, 0.85, smoothstep(-1.05, 1.45, x));
+      return lerp(0.85, 0.83, smoothstep(1.45, 2.22, x));
+    }
+    function botY(x) {
+      if (x < -1.88) return lerp(0.22, 0.15, smoothstep(-2.22, -1.88, x));
+      if (x < 1.52)  return 0.15;
+      return lerp(0.15, 0.36, smoothstep(1.52, 2.22, x));
+    }
+    function halfW(x) {
+      let w = 0.91;
+      if (x < -1.85) w = lerp(0.54, 0.90, smoothstep(-2.22, -1.85, x));
+      else if (x < -0.75) w = 0.90 + 0.08 * Math.exp(-Math.pow((x + 1.34) / 0.42, 2));
+      else if (x < 0.65) w = 0.90;
+      else if (x < 1.95) w = 0.90 + 0.11 * Math.exp(-Math.pow((x - 1.32) / 0.48, 2));
+      else w = lerp(0.95, 0.83, smoothstep(1.95, 2.22, x));
+      return w;
+    }
+
+    buildLoftedVehicle(mb, {
+      stations,
+      frontCapY: 0.28,
+      rearCapY: 0.62,
+      profileFn(x, theta) {
+        const yt = topY(x);
+        const yb = botY(x);
+        const yblt = Math.min(beltY(x), yt);
+        let w = halfW(x);
+        const s = Math.sin(theta);
+        const c = Math.cos(theta);
+        const absC = Math.abs(c);
+        const signC = c >= 0 ? 1 : -1;
+        let y, z;
+        if (s >= 0) {
+          // Upper half: lower shoulder -> greenhouse tumblehome -> smooth roof crown
+          const hBelt = Math.max(0.01, yblt - (yb + 0.10));
+          const hCab = Math.max(0.0, yt - yblt);
+          if (s < 0.42) {
+            const t = s / 0.42;
+            y = (yb + 0.10) + t * hBelt;
+            z = signC * w * Math.pow(1 - 0.05 * t * t, 0.6);
+          } else {
+            const t = (s - 0.42) / 0.58; // 0 at beltline -> 1 at centerline roof
+            const cabFactor = smoothstep(0.02, 0.18, hCab);
+            const roofHalfW = lerp(w * 0.88, w * 0.66, cabFactor);
+            const curW = lerp(w * 0.97, roofHalfW, Math.pow(t, 0.72));
+            y = yblt + hCab * Math.sin(t * Math.PI * 0.5);
+            z = signC * curW * Math.cos(t * Math.PI * 0.5);
+          }
+        } else {
+          // Lower body + flat underfloor
+          const t = -s; // 0 at side -> 1 at floor center
+          y = lerp(yb + 0.10, yb, Math.pow(t, 0.55));
+          z = signC * w * Math.cos(t * Math.PI * 0.5);
+        }
+
+        // Smooth wheel arch indentation for wheels at x=-1.34 & x=+1.32
+        const dFront = Math.hypot(x + 1.34, Math.max(0, y - 0.34));
+        const dRear  = Math.hypot(x - 1.32, Math.max(0, y - 0.36));
+        if (dFront < 0.44 && Math.abs(z) > 0.60 && y < 0.72) {
+          const indent = smoothstep(0.44, 0.28, dFront);
+          z -= signC * 0.20 * indent;
+        }
+        if (dRear < 0.46 && Math.abs(z) > 0.60 && y < 0.76) {
+          const indent = smoothstep(0.46, 0.30, dRear);
+          z -= signC * 0.22 * indent;
+        }
+        return [x, y, z];
+      },
+      partFn(x, y, z, theta) {
+        const yblt = beltY(x);
+        const yt = topY(x);
+        // Glass greenhouse (windshield, side windows, rear glass)
+        if (x > -1.00 && x < 1.35 && y > yblt + 0.04 && yt - yblt > 0.12) {
+          const inRoofCenter = x > -0.22 && x < 0.68 && Math.abs(z) < 0.48 && y > yt - 0.06;
+          if (!inRoofCenter) return 2; // tinted glass
+        }
+        // Lower aero sill / diffuser
+        if (y < botY(x) + 0.06 || (x > 2.15 && y < 0.58)) return 3; // carbon
+        return 0; // metallic car paint
+      }
+    });
+
+    // Compute smooth normals on body shell before adding crisp aero wings & wheels
+    const bodyVertEnd = mb.pos.length / 3;
+    const tmpNorm = recomputeSmoothNormals(new Float32Array(mb.pos), new Uint32Array(mb.idx));
+    for (let i = 0; i < bodyVertEnd * 3; i++) mb.norm[i] = tmpNorm[i];
+
+    // Sleek tucked carbon front splitter + side canards
+    mb.addBox(-1.92, 0.145, 0, 0.58, 0.028, 1.64, 3);
+    mb.addBox(-2.14, 0.148, 0, 0.22, 0.024, 1.32, 3);
+    // Dedicated flush LED headlights & full-width LED rear taillight strip
+    mb.addBox(-2.06, 0.49, 0.62, 0.22, 0.055, 0.24, 4, -0.28, 0.22);
+    mb.addBox(-2.06, 0.49, -0.62, 0.22, 0.055, 0.24, 4, -0.28, -0.22);
+    mb.addBox(2.21, 0.72, 0, 0.05, 0.042, 1.48, 4);
+    // Side aero skirts
+    mb.addBox(0.0, 0.145, 0.89, 1.88, 0.036, 0.12, 3);
+    mb.addBox(0.0, 0.145, -0.89, 1.88, 0.036, 0.12, 3);
+    // Rear diffuser vertical strakes
+    for (const zOff of [-0.52, -0.26, 0, 0.26, 0.52]) {
+      mb.addBox(2.02, 0.26, zOff, 0.44, 0.15, 0.022, 3, 0.26);
+    }
+    // Elevated GT Rear Wing (inverted cambered airfoil for downforce!)
+    mb.addExtrudedAirfoil(2.04, 1.15, 0.36, 0.12, -0.055, 1.72, -0.14, 3, true);
+    // Wing pylons
+    mb.addBox(1.94, 0.99, 0.44, 0.22, 0.30, 0.03, 3, -0.22);
+    mb.addBox(1.94, 0.99, -0.44, 0.22, 0.30, 0.03, 3, -0.22);
+    // Side mirrors
+    mb.addBox(-0.62, 0.85, 0.95, 0.17, 0.08, 0.14, 0);
+    mb.addBox(-0.62, 0.85, -0.95, 0.17, 0.08, 0.14, 0);
+
+    // 4 Detailed Wheels resting at y = 0
+    mb.addWheel(-1.34, 0.34, 0.85, 0.34, 0.26, 1, 5);
+    mb.addWheel(-1.34, 0.34, -0.85, 0.34, 0.26, 1, 5);
+    mb.addWheel(1.32, 0.36, 0.88, 0.36, 0.30, 1, 5);
+    mb.addWheel(1.32, 0.36, -0.88, 0.36, 0.30, 1, 5);
+
+    return mb.build('GT 스포츠카', true, { fx: -1.34, fy: 0.34, rx: 1.32, ry: 0.36 });
+  }
+
+  function createSuvMesh() {
+    const mb = new MeshBuilder();
+    const stations = [];
+    for (let i = 0; i <= 40; i++) stations.push(-2.30 + (i / 40) * 4.60);
+
+    function topY(x) {
+      if (x < -2.02) return lerp(0.45, 0.94, smoothstep(-2.30, -2.02, x));
+      if (x < -1.05) return lerp(0.94, 1.06, smoothstep(-2.02, -1.05, x));
+      if (x < -0.45) return lerp(1.06, 1.72, smoothstep(-1.05, -0.45, x));
+      if (x < 1.85)  return lerp(1.72, 1.66, smoothstep(-0.45, 1.85, x));
+      return lerp(1.66, 1.48, smoothstep(1.85, 2.30, x));
+    }
+    function beltY(x) {
+      if (x < -2.05) return lerp(0.45, 0.92, smoothstep(-2.30, -2.05, x));
+      return lerp(0.92, 1.08, smoothstep(-2.05, 2.30, x));
+    }
+    function botY(x) {
+      if (x < -1.95) return lerp(0.36, 0.26, smoothstep(-2.30, -1.95, x));
+      if (x < 1.80)  return 0.26;
+      return lerp(0.26, 0.38, smoothstep(1.80, 2.30, x));
+    }
+    function halfW(x) {
+      if (x < -2.02) return lerp(0.76, 0.98, smoothstep(-2.30, -2.02, x));
+      if (x > 2.02) return lerp(0.98, 0.88, smoothstep(2.02, 2.30, x));
+      return 0.98;
+    }
+
+    buildLoftedVehicle(mb, {
+      stations,
+      frontCapY: 0.65,
+      rearCapY: 1.02,
+      profileFn(x, theta) {
+        const yt = topY(x), yb = botY(x), yblt = Math.min(beltY(x), yt);
+        const w = halfW(x);
+        const s = Math.sin(theta), c = Math.cos(theta);
+        const signC = c >= 0 ? 1 : -1;
+        let y, z;
+        if (s >= 0) {
+          if (s < 0.48) {
+            const t = s / 0.48;
+            y = (yb + 0.08) + t * Math.max(0.01, yblt - (yb + 0.08));
+            z = signC * w;
+          } else {
+            const t = (s - 0.48) / 0.52;
+            const hCab = Math.max(0, yt - yblt);
+            const roofW = w * 0.84;
+            const curW = lerp(w, roofW, Math.pow(t, 0.65));
+            y = yblt + hCab * Math.sin(t * Math.PI * 0.5);
+            z = signC * curW * Math.cos(t * Math.PI * 0.5);
+          }
+        } else {
+          const t = -s;
+          y = lerp(yb + 0.08, yb, Math.pow(t, 0.5));
+          z = signC * w * Math.cos(t * Math.PI * 0.5);
+        }
+        const dFront = Math.hypot(x + 1.40, Math.max(0, y - 0.40));
+        const dRear = Math.hypot(x - 1.38, Math.max(0, y - 0.40));
+        if (dFront < 0.48 && Math.abs(z) > 0.68) z -= signC * 0.14 * smoothstep(0.48, 0.34, dFront);
+        if (dRear < 0.48 && Math.abs(z) > 0.68) z -= signC * 0.14 * smoothstep(0.48, 0.34, dRear);
+        return [x, y, z];
+      },
+      partFn(x, y, z) {
+        const yblt = beltY(x), yt = topY(x);
+        if (x > -1.04 && x < 2.22 && y > yblt + 0.04 && yt - yblt > 0.14) {
+          if (!(Math.abs(z) < 0.72 && y > yt - 0.07 && x > -0.45 && x < 1.90)) return 2;
+        }
+        if (y < botY(x) + 0.10 || (x < -2.18 && y < 0.78)) return 3;
+        if (x < -2.18 && y > 0.74 && Math.abs(z) > 0.52) return 4;
+        return 0;
+      }
+    });
+    const bodyVertEnd = mb.pos.length / 3;
+    const tmpNorm = recomputeSmoothNormals(new Float32Array(mb.pos), new Uint32Array(mb.idx));
+    for (let i = 0; i < bodyVertEnd * 3; i++) mb.norm[i] = tmpNorm[i];
+
+    // Roof lip spoiler & mirrors
+    mb.addBox(2.26, 1.62, 0, 0.24, 0.06, 1.56, 3, -0.10);
+    mb.addBox(-0.74, 1.12, 1.06, 0.20, 0.12, 0.18, 0);
+    mb.addBox(-0.74, 1.12, -1.06, 0.20, 0.12, 0.18, 0);
+
+    // 4 SUV wheels
+    mb.addWheel(-1.40, 0.40, 0.93, 0.40, 0.28, 1, 5);
+    mb.addWheel(-1.40, 0.40, -0.93, 0.40, 0.28, 1, 5);
+    mb.addWheel(1.38, 0.40, 0.93, 0.40, 0.28, 1, 5);
+    mb.addWheel(1.38, 0.40, -0.93, 0.40, 0.28, 1, 5);
+
+    return mb.build('SUV', true, { fx: -1.40, fy: 0.40, rx: 1.38, ry: 0.40 });
+  }
+
+  function createFormulaMesh() {
+    const mb = new MeshBuilder();
+    // Narrow aerodynamic monocoque chassis + needle nose
+    const stations = [];
+    for (let i = 0; i <= 36; i++) stations.push(-2.35 + (i / 36) * 4.55);
+    buildLoftedVehicle(mb, {
+      stations,
+      frontCapY: 0.24,
+      rearCapY: 0.52,
+      profileFn(x, theta) {
+        const s = Math.sin(theta), c = Math.cos(theta);
+        const signC = c >= 0 ? 1 : -1;
+        let w = 0.28;
+        if (x < -1.2) w = lerp(0.11, 0.28, smoothstep(-2.35, -1.2, x));
+        else if (x < 0.8) w = lerp(0.28, 0.34, smoothstep(-1.2, 0.2, x));
+        else w = lerp(0.34, 0.16, smoothstep(0.8, 2.2, x));
+        let yt = 0.56;
+        if (x < -1.1) yt = lerp(0.26, 0.56, smoothstep(-2.35, -1.1, x));
+        else if (x < 0.1) yt = 0.58;
+        else if (x < 0.45) yt = lerp(0.58, 0.94, smoothstep(0.1, 0.45, x));
+        else yt = lerp(0.94, 0.54, smoothstep(0.45, 2.2, x));
+        const yb = x < -1.4 ? lerp(0.18, 0.10, smoothstep(-2.35, -1.4, x)) : 0.09;
+        const ym = (yt + yb) * 0.5;
+        const ry = (yt - yb) * 0.5;
+        return [x, ym + ry * s, signC * w * Math.pow(Math.abs(c), 0.75)];
+      },
+      partFn(x, y) {
+        if (x > -0.35 && x < 0.25 && y > 0.48) return 2;
+        if (y < 0.14) return 3;
+        return 0;
+      }
+    });
+    const bodyVertEnd = mb.pos.length / 3;
+    const tmpNorm = recomputeSmoothNormals(new Float32Array(mb.pos), new Uint32Array(mb.idx));
+    for (let i = 0; i < bodyVertEnd * 3; i++) mb.norm[i] = tmpNorm[i];
+
+    // Sculpted tapered aerodynamic sidepods (coke-bottle profile)
+    for (const side of [-1, 1]) {
+      const spStart = mb.pos.length / 3;
+      const spStations = [];
+      for (let i = 0; i <= 14; i++) spStations.push(-0.42 + (i / 14) * 1.95);
+      buildLoftedVehicle(mb, {
+        stations: spStations,
+        frontCapY: 0.36,
+        rearCapY: 0.22,
+        profileFn(x, theta) {
+          const t = (x + 0.42) / 1.95;
+          const s = Math.sin(theta), c = Math.cos(theta);
+          const wPod = lerp(0.24, 0.06, Math.pow(t, 1.35)) * (0.75 + 0.25 * Math.sin(Math.min(1, t * 4) * Math.PI * 0.5));
+          const hPod = lerp(0.20, 0.08, Math.pow(t, 1.2));
+          const cy = lerp(0.35, 0.22, t);
+          const cz = side * lerp(0.54, 0.28, Math.pow(t, 1.4));
+          return [x, cy + hPod * s, cz + wPod * c];
+        },
+        partFn(x) { return x < -0.34 ? 3 : 0; }
+      });
+      const spNorm = recomputeSmoothNormals(new Float32Array(mb.pos), new Uint32Array(mb.idx));
+      for (let i = spStart * 3; i < mb.pos.length; i++) mb.norm[i] = spNorm[i];
+      // Carbon floor & bargeboards
+      mb.addBox(0.32, 0.08, side * 0.56, 2.20, 0.03, 0.62, 3);
+      // Suspension wishbones
+      mb.addBox(-1.42, 0.30, side * 0.56, 0.06, 0.03, 0.62, 3);
+      mb.addBox(-1.26, 0.34, side * 0.56, 0.06, 0.03, 0.62, 3);
+      mb.addBox(1.42, 0.30, side * 0.56, 0.06, 0.03, 0.62, 3);
+      mb.addBox(1.56, 0.36, side * 0.56, 0.06, 0.03, 0.62, 3);
+    }
+    // Cockpit Halo + Driver Helmet
+    mb.addBox(-0.18, 0.68, 0, 0.58, 0.045, 0.36, 3, 0.12);
+    mb.addBox(-0.46, 0.62, 0, 0.05, 0.16, 0.05, 3, -0.35);
+    // Multi-element Front Wing + Endplates
+    mb.addExtrudedAirfoil(-2.22, 0.15, 0.42, 0.10, -0.05, 1.92, -0.10, 3, true);
+    mb.addExtrudedAirfoil(-2.06, 0.21, 0.22, 0.09, -0.05, 1.84, -0.24, 0, false);
+    // Tall Dual-Plane Rear Wing + Endplates
+    mb.addExtrudedAirfoil(2.02, 0.90, 0.38, 0.11, -0.06, 1.18, -0.16, 3, true);
+    mb.addExtrudedAirfoil(2.14, 1.04, 0.22, 0.09, -0.05, 1.16, -0.32, 0, false);
+    mb.addBox(1.98, 0.68, 0, 0.22, 0.42, 0.04, 3);
+    // Rear Diffuser
+    mb.addBox(1.92, 0.18, 0, 0.60, 0.20, 0.88, 3, 0.24);
+    // 4 Open Racing Slicks
+    mb.addWheel(-1.38, 0.34, 0.88, 0.34, 0.32, 1, 5);
+    mb.addWheel(-1.38, 0.34, -0.88, 0.34, 0.32, 1, 5);
+    mb.addWheel(1.48, 0.35, 0.88, 0.35, 0.38, 1, 5);
+    mb.addWheel(1.48, 0.35, -0.88, 0.35, 0.38, 1, 5);
+
+    return mb.build('F1 레이서', true, { fx: -1.38, fy: 0.34, rx: 1.48, ry: 0.35 });
+  }
+
+  function createAirfoilMesh() {
+    const mb = new MeshBuilder();
+    // NACA 2412 wing suspended in test section center
+    mb.addExtrudedAirfoil(0.0, 1.15, 2.20, 0.14, 0.04, 2.80, -0.06, 0, true);
+    // Thin vertical mounting sting to floor
+    mb.addBox(0.12, 0.54, 0, 0.14, 1.08, 0.08, 3);
+    mb.addBox(0.12, 0.02, 0, 0.46, 0.04, 0.46, 3);
+    return mb.build('NACA 2412 에어포일', false, null);
+  }
+
+  function createSphereMesh() {
+    const mb = new MeshBuilder();
+    const r = 0.78, cy = 1.15;
+    const latN = 28, lonN = 40;
+    const grid = [];
+    for (let i = 0; i <= latN; i++) {
+      const phi = (i / latN) * Math.PI;
+      const sp = Math.sin(phi), cp = Math.cos(phi);
+      const row = [];
+      for (let j = 0; j <= lonN; j++) {
+        const theta = (j / lonN) * Math.PI * 2;
+        const nx = sp * Math.cos(theta);
+        const ny = cp;
+        const nz = sp * Math.sin(theta);
+        row.push(mb.addVertex(nx * r, cy + ny * r, nz * r, nx, ny, nz, 0));
+      }
+      grid.push(row);
+    }
+    for (let i = 0; i < latN; i++) {
+      for (let j = 0; j < lonN; j++) {
+        mb.addQuad(grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]);
+      }
+    }
+    // Rear sting mount
+    mb.addBox(0.0, 0.40, 0, 0.10, 0.80, 0.10, 3);
+    mb.addBox(0.0, 0.02, 0, 0.44, 0.04, 0.44, 3);
+    return mb.build('표준 구체 (Sphere)', false, null);
+  }
+
+  /* ============================================================================
+   * 4. 3D FILE PARSERS (STL Binary/ASCII, OBJ, GLB/glTF 2.0) & OBJ EXPORTER
+   * ========================================================================== */
+  function parseSTL(arrayBuffer, fileName) {
+    const view = new DataView(arrayBuffer);
+    let isBinary = false;
+    if (arrayBuffer.byteLength >= 84) {
+      const triCount = view.getUint32(80, true);
+      if (84 + triCount * 50 === arrayBuffer.byteLength) isBinary = true;
+    }
+    const rawPos = [];
+    if (isBinary) {
+      const triCount = view.getUint32(80, true);
+      let off = 84;
+      for (let i = 0; i < triCount; i++) {
+        off += 12; // skip face normal
+        for (let k = 0; k < 3; k++) {
+          rawPos.push(
+            view.getFloat32(off, true),
+            view.getFloat32(off + 4, true),
+            view.getFloat32(off + 8, true)
+          );
+          off += 12;
+        }
+        off += 2; // attribute byte count
+      }
+    } else {
+      const text = new TextDecoder('utf-8').decode(arrayBuffer);
+      const regex = /vertex\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)/g;
+      let m;
+      while ((m = regex.exec(text)) !== null) {
+        rawPos.push(parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3]));
+      }
+    }
+    if (rawPos.length < 9) throw new Error('STL 파일에서 유효한 삼각형을 찾을 수 없습니다.');
+    const triVerts = Math.floor(rawPos.length / 9) * 3;
+    const rawIdx = new Uint32Array(triVerts);
+    for (let i = 0; i < triVerts; i++) rawIdx[i] = i;
+    const { positions, normals, indices } = weldAndComputeNormals(new Float32Array(rawPos.slice(0, triVerts * 3)), rawIdx);
+    return {
+      name: fileName,
+      positions,
+      normals,
+      indices,
+      partIds: new Uint8Array(positions.length / 3),
+      hasWheels: false,
+      wheelMeta: null,
+    };
+  }
+
+  function parseOBJ(text, fileName) {
+    const verts = [];
+    const vnorms = [];
+    const outPos = [];
+    const outNorm = [];
+    const outIdx = [];
+    let hasNormals = true;
+    const lines = text.split(/\r?\n/);
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li].trim();
+      if (!line || line[0] === '#') continue;
+      const parts = line.split(/\s+/);
+      const tag = parts[0];
+      if (tag === 'v' && parts.length >= 4) {
+        verts.push(parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
+      } else if (tag === 'vn' && parts.length >= 4) {
+        vnorms.push(parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
+      } else if (tag === 'f' && parts.length >= 4) {
+        const faceVerts = [];
+        const vTotal = verts.length / 3;
+        const vnTotal = vnorms.length / 3;
+        for (let i = 1; i < parts.length; i++) {
+          const seg = parts[i].split('/');
+          let vi = parseInt(seg[0], 10);
+          if (isNaN(vi)) continue;
+          vi = vi < 0 ? vTotal + vi : vi - 1;
+          let ni = -1;
+          if (seg.length >= 3 && seg[2]) {
+            ni = parseInt(seg[2], 10);
+            ni = ni < 0 ? vnTotal + ni : ni - 1;
+          }
+          faceVerts.push([vi, ni]);
+        }
+        // Fan triangulate convex/general n-gon
+        for (let i = 1; i + 1 < faceVerts.length; i++) {
+          const tri = [faceVerts[0], faceVerts[i], faceVerts[i + 1]];
+          for (const [vi, ni] of tri) {
+            const idx = outPos.length / 3;
+            outPos.push(verts[vi * 3] || 0, verts[vi * 3 + 1] || 0, verts[vi * 3 + 2] || 0);
+            if (ni >= 0 && ni * 3 + 2 < vnorms.length) {
+              outNorm.push(vnorms[ni * 3], vnorms[ni * 3 + 1], vnorms[ni * 3 + 2]);
+            } else {
+              hasNormals = false;
+              outNorm.push(0, 1, 0);
+            }
+            outIdx.push(idx);
+          }
+        }
+      }
+    }
+    if (outIdx.length < 3) throw new Error('OBJ 파일에서 유효한 면(face)을 찾을 수 없습니다.');
+    let positions = new Float32Array(outPos);
+    let indices = new Uint32Array(outIdx);
+    let normals;
+    if (hasNormals) {
+      normals = new Float32Array(outNorm);
+    } else {
+      const welded = weldAndComputeNormals(positions, indices);
+      positions = welded.positions;
+      normals = welded.normals;
+      indices = welded.indices;
+    }
+    return {
+      name: fileName,
+      positions,
+      normals,
+      indices,
+      partIds: new Uint8Array(positions.length / 3),
+      hasWheels: false,
+      wheelMeta: null,
+    };
+  }
+
+  function decodeBase64DataURI(uri) {
+    const idx = uri.indexOf(',');
+    const b64 = idx >= 0 ? uri.slice(idx + 1) : uri;
+    const binStr = atob(b64);
+    const bytes = new Uint8Array(binStr.length);
+    for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  function extractGLTFMeshes(json, binBuffers, fileName) {
+    const typeCounts = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
+    const compSizes = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 };
+
+    function readAccessor(accIdx) {
+      const acc = json.accessors[accIdx];
+      const bv = json.bufferViews[acc.bufferView];
+      const buf = binBuffers[bv.buffer || 0];
+      if (!buf) throw new Error('glTF 외부 바이너리(.bin)가 누락되었습니다. 임베디드 .glb 형식을 사용해 주세요.');
+      const compCount = typeCounts[acc.type] || 1;
+      const compSize = compSizes[acc.componentType] || 4;
+      const stride = bv.byteStride || (compCount * compSize);
+      const baseOff = (bv.byteOffset || 0) + (acc.byteOffset || 0);
+      const view = new DataView(buf);
+      const out = new Float32Array(acc.count * compCount);
+      for (let i = 0; i < acc.count; i++) {
+        const rowOff = baseOff + i * stride;
+        for (let c = 0; c < compCount; c++) {
+          const o = rowOff + c * compSize;
+          let v = 0;
+          if (acc.componentType === 5126) v = view.getFloat32(o, true);
+          else if (acc.componentType === 5125) v = view.getUint32(o, true);
+          else if (acc.componentType === 5123) v = view.getUint16(o, true);
+          else if (acc.componentType === 5122) v = view.getInt16(o, true);
+          else if (acc.componentType === 5121) v = view.getUint8(o);
+          else if (acc.componentType === 5120) v = view.getInt8(o);
+          out[i * compCount + c] = v;
+        }
+      }
+      return out;
+    }
+
+    const outPos = [];
+    const outNorm = [];
+    const outIdx = [];
+    let allHaveNormals = true;
+
+    function visitNode(nodeIdx, parentMat) {
+      const node = json.nodes[nodeIdx];
+      let localMat;
+      if (node.matrix) {
+        localMat = new Float32Array(node.matrix);
+      } else {
+        const t = node.translation || [0, 0, 0];
+        const q = node.rotation || [0, 0, 0, 1];
+        const s = node.scale || [1, 1, 1];
+        localMat = Mat4.fromTRS(t, q, s);
+      }
+      const worldMat = Mat4.multiply(parentMat, localMat);
+      if (node.mesh !== undefined && json.meshes && json.meshes[node.mesh]) {
+        const mesh = json.meshes[node.mesh];
+        for (const prim of (mesh.primitives || [])) {
+          if (prim.mode !== undefined && prim.mode !== 4) continue; // triangles only
+          if (prim.attributes.POSITION === undefined) continue;
+          const posData = readAccessor(prim.attributes.POSITION);
+          const normData = prim.attributes.NORMAL !== undefined ? readAccessor(prim.attributes.NORMAL) : null;
+          if (!normData) allHaveNormals = false;
+          const baseVertex = outPos.length / 3;
+          const vCount = posData.length / 3;
+          for (let i = 0; i < vCount; i++) {
+            const p = Mat4.transformPoint(worldMat, posData[i * 3], posData[i * 3 + 1], posData[i * 3 + 2]);
+            outPos.push(p[0], p[1], p[2]);
+            if (normData) {
+              const n = Mat4.transformDir(worldMat, normData[i * 3], normData[i * 3 + 1], normData[i * 3 + 2]);
+              outNorm.push(n[0], n[1], n[2]);
+            } else {
+              outNorm.push(0, 1, 0);
+            }
+          }
+          if (prim.indices !== undefined) {
+            const idxData = readAccessor(prim.indices);
+            for (let i = 0; i < idxData.length; i++) outIdx.push(baseVertex + idxData[i]);
+          } else {
+            for (let i = 0; i < vCount; i++) outIdx.push(baseVertex + i);
+          }
+        }
+      }
+      if (node.children) {
+        for (const ch of node.children) visitNode(ch, worldMat);
+      }
+    }
+
+    const sceneIdx = json.scene || 0;
+    const roots = (json.scenes && json.scenes[sceneIdx] && json.scenes[sceneIdx].nodes) || [];
+    const I = Mat4.identity();
+    if (roots.length > 0) {
+      for (const r of roots) visitNode(r, I);
+    } else if (json.nodes) {
+      for (let i = 0; i < json.nodes.length; i++) visitNode(i, I);
+    }
+    if (outIdx.length < 3) throw new Error('GLB/glTF 파일에서 삼각형 메시를 찾을 수 없습니다.');
+    const positions = new Float32Array(outPos);
+    const indices = new Uint32Array(outIdx);
+    const normals = allHaveNormals ? new Float32Array(outNorm) : recomputeSmoothNormals(positions, indices);
+    return {
+      name: fileName,
+      positions,
+      normals,
+      indices,
+      partIds: new Uint8Array(positions.length / 3),
+      hasWheels: false,
+      wheelMeta: null,
+    };
+  }
+
+  function parseGLB(arrayBuffer, fileName) {
+    const view = new DataView(arrayBuffer);
+    if (view.getUint32(0, true) !== 0x46546C67) throw new Error('유효한 GLB 헤더가 아닙니다.');
+    let off = 12;
+    let jsonObj = null;
+    let binChunk = null;
+    while (off + 8 <= arrayBuffer.byteLength) {
+      const chunkLen = view.getUint32(off, true);
+      const chunkType = view.getUint32(off + 4, true);
+      off += 8;
+      if (chunkType === 0x4E4F534A) {
+        const jsonStr = new TextDecoder('utf-8').decode(new Uint8Array(arrayBuffer, off, chunkLen));
+        jsonObj = JSON.parse(jsonStr);
+      } else if (chunkType === 0x004E4942) {
+        binChunk = arrayBuffer.slice(off, off + chunkLen);
+      }
+      off += chunkLen;
+    }
+    if (!jsonObj) throw new Error('GLB JSON 청크를 읽을 수 없습니다.');
+    const buffers = (jsonObj.buffers || []).map((b, i) => {
+      if (b.uri && b.uri.startsWith('data:')) return decodeBase64DataURI(b.uri);
+      return i === 0 ? binChunk : null;
+    });
+    return extractGLTFMeshes(jsonObj, buffers, fileName);
+  }
+
+  function parseGLTF(text, fileName) {
+    const jsonObj = JSON.parse(text);
+    const buffers = (jsonObj.buffers || []).map(b => {
+      if (b.uri && b.uri.startsWith('data:')) return decodeBase64DataURI(b.uri);
+      return null;
+    });
+    return extractGLTFMeshes(jsonObj, buffers, fileName);
+  }
+
+  function exportMeshToOBJ(mesh) {
+    const lines = ['# Exported from AERO LAB 3D Wind Tunnel'];
+    const p = mesh.positions, n = mesh.normals, idx = mesh.indices;
+    for (let i = 0; i < p.length; i += 3) {
+      lines.push(`v ${p[i].toFixed(4)} ${p[i + 1].toFixed(4)} ${p[i + 2].toFixed(4)}`);
+    }
+    for (let i = 0; i < n.length; i += 3) {
+      lines.push(`vn ${n[i].toFixed(4)} ${n[i + 1].toFixed(4)} ${n[i + 2].toFixed(4)}`);
+    }
+    for (let i = 0; i < idx.length; i += 3) {
+      const a = idx[i] + 1, b = idx[i + 1] + 1, c = idx[i + 2] + 1;
+      lines.push(`f ${a}//${a} ${b}//${b} ${c}//${c}`);
+    }
+    return lines.join('\n');
+  }
+
+  /* ============================================================================
+   * 5. MODEL NORMALIZATION & ORIENTATION TRANSFORM
+   * ========================================================================== */
+  function transformModelForTunnel(rawMesh, opts) {
+    // opts: { frontAxis: '-x'|'+x'|'-z'|'+z', upAxis: 'y'|'z', scale, yawDeg, pitchDeg, rideHeight, isPreset }
+    const vCount = rawMesh.positions.length / 3;
+    const tmpPos = new Float32Array(vCount * 3);
+    const tmpNorm = new Float32Array(vCount * 3);
+
+    const rotAxis = (x, y, z) => {
+      // Step 1: Up axis correction (Z-up -> Y-up)
+      let ax = x, ay = y, az = z;
+      if (opts.upAxis === 'z') {
+        ay = z;
+        az = -y;
+      }
+      // Step 2: Front axis correction so nose faces -X (into oncoming +X wind)
+      let fx = ax, fy = ay, fz = az;
+      if (opts.frontAxis === '+x') { fx = -ax; fz = -az; }
+      else if (opts.frontAxis === '-z') { fx = az; fz = -ax; }
+      else if (opts.frontAxis === '+z') { fx = -az; fz = ax; }
+      return [fx, fy, fz];
+    };
+
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    for (let i = 0; i < vCount; i++) {
+      const j = i * 3;
+      const [px, py, pz] = rotAxis(rawMesh.positions[j], rawMesh.positions[j + 1], rawMesh.positions[j + 2]);
+      const [nx, ny, nz] = rotAxis(rawMesh.normals[j], rawMesh.normals[j + 1], rawMesh.normals[j + 2]);
+      tmpPos[j] = px; tmpPos[j + 1] = py; tmpPos[j + 2] = pz;
+      tmpNorm[j] = nx; tmpNorm[j + 1] = ny; tmpNorm[j + 2] = nz;
+      if (px < minX) minX = px; if (px > maxX) maxX = px;
+      if (py < minY) minY = py; if (py > maxY) maxY = py;
+      if (pz < minZ) minZ = pz; if (pz > maxZ) maxZ = pz;
+    }
+
+    const cx = (minX + maxX) * 0.5;
+    const cz = (minZ + maxZ) * 0.5;
+    const spanX = Math.max(1e-4, maxX - minX);
+    const spanY = Math.max(1e-4, maxY - minY);
+    const spanZ = Math.max(1e-4, maxZ - minZ);
+    const maxSpan = Math.max(spanX, spanY, spanZ);
+
+    // Preset models already have real-world meter scale (~4.5m); uploaded models auto-normalize to ~4.4m
+    const normScale = opts.isPreset ? opts.scale : (4.4 / maxSpan) * opts.scale;
+
+    // Apply normalization + Pitch (about Z) + Yaw (about Y)
+    const yaw = (opts.yawDeg * Math.PI) / 180;
+    const pitch = (opts.pitchDeg * Math.PI) / 180;
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const cp = Math.cos(pitch), sp = Math.sin(pitch);
+
+    const outPos = new Float32Array(vCount * 3);
+    const outNorm = new Float32Array(vCount * 3);
+    const pivotY = (spanY * 0.5) * normScale;
+
+    let finalMinY = Infinity;
+    for (let i = 0; i < vCount; i++) {
+      const j = i * 3;
+      let x = (tmpPos[j] - cx) * normScale;
+      let y = (tmpPos[j + 1] - minY) * normScale - pivotY;
+      let z = (tmpPos[j + 2] - cz) * normScale;
+
+      // Pitch: positive pitch raises nose (-X goes up +Y)
+      const px1 = x * cp + y * sp;
+      const py1 = -x * sp + y * cp;
+      // Yaw: rotate about Y
+      const fx = px1 * cy + z * sy;
+      const fy = py1 + pivotY;
+      const fz = -px1 * sy + z * cy;
+      outPos[j] = fx; outPos[j + 1] = fy; outPos[j + 2] = fz;
+      if (fy < finalMinY) finalMinY = fy;
+
+      const nx = tmpNorm[j], ny = tmpNorm[j + 1], nz = tmpNorm[j + 2];
+      const n1x = nx * cp + ny * sp;
+      const n1y = -nx * sp + ny * cp;
+      const fnx = n1x * cy + nz * sy;
+      const fny = n1y;
+      const fnz = -n1x * sy + nz * cy;
+      const nl = Math.hypot(fnx, fny, fnz) || 1;
+      outNorm[j] = fnx / nl; outNorm[j + 1] = fny / nl; outNorm[j + 2] = fnz / nl;
+    }
+
+    // Seat cleanly at rideHeight above floor y = 0
+    const yShift = opts.rideHeight - finalMinY;
+    let bMinX = Infinity, bMaxX = -Infinity, bMinY = Infinity, bMaxY = -Infinity, bMinZ = Infinity, bMaxZ = -Infinity;
+    for (let i = 0; i < vCount; i++) {
+      const j = i * 3;
+      outPos[j + 1] += yShift;
+      const x = outPos[j], y = outPos[j + 1], z = outPos[j + 2];
+      if (x < bMinX) bMinX = x; if (x > bMaxX) bMaxX = x;
+      if (y < bMinY) bMinY = y; if (y > bMaxY) bMaxY = y;
+      if (z < bMinZ) bMinZ = z; if (z > bMaxZ) bMaxZ = z;
+    }
+
+    return {
+      name: rawMesh.name,
+      positions: outPos,
+      normals: outNorm,
+      indices: rawMesh.indices,
+      partIds: rawMesh.partIds,
+      hasWheels: rawMesh.hasWheels && opts.isPreset && Math.abs(opts.pitchDeg) < 0.01 && Math.abs(opts.yawDeg) < 0.01 && opts.frontAxis === '-x' && opts.upAxis === 'y',
+      wheelMeta: rawMesh.wheelMeta ? {
+        fx: rawMesh.wheelMeta.fx * normScale,
+        fy: rawMesh.wheelMeta.fy * normScale + opts.rideHeight,
+        rx: rawMesh.wheelMeta.rx * normScale,
+        ry: rawMesh.wheelMeta.ry * normScale + opts.rideHeight,
+      } : null,
+      bounds: {
+        minX: bMinX, maxX: bMaxX,
+        minY: bMinY, maxY: bMaxY,
+        minZ: bMinZ, maxZ: bMaxZ,
+        lenX: bMaxX - bMinX,
+        lenY: bMaxY - bMinY,
+        lenZ: bMaxZ - bMinZ,
+      },
+    };
+  }
+
+  /* ============================================================================
+   * 6. 3D VOXELIZED AERODYNAMICS / CFD SOLVER
+   * ========================================================================== */
+  class WindTunnelSolver {
+    constructor() {
+      this.nx = 64;
+      this.ny = 24;
+      this.nz = 28;
+      this.xMin = -4.4; this.xMax = 7.6;
+      this.yMin = 0.0;  this.yMax = 4.2;
+      this.zMin = -3.0; this.zMax = 3.0;
+      this.dx = (this.xMax - this.xMin) / (this.nx - 1);
+      this.dy = (this.yMax - this.yMin) / (this.ny - 1);
+      this.dz = (this.zMax - this.zMin) / (this.nz - 1);
+
+      const total = this.nx * this.ny * this.nz;
+      this.solid = new Uint8Array(total);
+      this.phi = new Float32Array(total);
+      this.u = new Float32Array(total);
+      this.v = new Float32Array(total);
+      this.w = new Float32Array(total);
+      this.wake = new Float32Array(total);
+      this.turb = new Float32Array(total);
+      this.cpGrid = new Float32Array(total);
+
+      this.metrics = {
+        cd: 0.295,
+        cl: -0.24,
+        cy: 0.0,
+        frontalArea: 2.0,
+        refLength: 4.5,
+        solveMs: 0,
+        cpProfile: new Float32Array(40),
+      };
+    }
+
+    idx(i, j, k) {
+      return (k * this.ny + j) * this.nx + i;
+    }
+
+    worldToGrid(x, y, z) {
+      return [
+        (x - this.xMin) / this.dx,
+        (y - this.yMin) / this.dy,
+        (z - this.zMin) / this.dz,
+      ];
+    }
+
+    solve(mesh) {
+      const t0 = performance.now();
+      const { nx, ny, nz, dx, dy, dz, xMin, yMin, zMin } = this;
+      const total = nx * ny * nz;
+      const solid = this.solid;
+      solid.fill(0);
+
+      // 1. Rasterize triangles to 3D voxel shell + high-res 2D YZ frontal area projection
+      const pos = mesh.positions;
+      const ind = mesh.indices;
+      const triCount = ind.length / 3;
+      const triStep = triCount > 70000 ? Math.ceil(triCount / 70000) : 1;
+
+      const projW = 128, projH = 96;
+      const projMask = new Uint8Array(projW * projH);
+      const pZMin = -2.6, pZSpan = 5.2;
+      const pYMin = 0.0, pYSpan = 3.6;
+
+      // Track vertical min/max per (i, k) column for fast interior fill of vehicle bodies
+      const colMinJ = new Int16Array(nx * nz);
+      const colMaxJ = new Int16Array(nx * nz);
+      colMinJ.fill(ny);
+      colMaxJ.fill(-1);
+
+      for (let t = 0; t < triCount; t += triStep) {
+        const a = ind[t * 3] * 3, b = ind[t * 3 + 1] * 3, c = ind[t * 3 + 2] * 3;
+        const ax = pos[a], ay = pos[a + 1], az = pos[a + 2];
+        const bx = pos[b], by = pos[b + 1], bz = pos[b + 2];
+        const cx = pos[c], cy = pos[c + 1], cz = pos[c + 2];
+
+        const e1 = Math.hypot(bx - ax, by - ay, bz - az);
+        const e2 = Math.hypot(cx - ax, cy - ay, cz - az);
+        const e3 = Math.hypot(cx - bx, cy - by, cz - bz);
+        const maxE = Math.max(e1, e2, e3);
+        const subs = clamp(Math.ceil(maxE / 0.11), 1, 14);
+
+        for (let u = 0; u <= subs; u++) {
+          for (let v = 0; v <= subs - u; v++) {
+            const fu = u / subs;
+            const fv = v / subs;
+            const fw = 1 - fu - fv;
+            const px = ax * fw + bx * fu + cx * fv;
+            const py = ay * fw + by * fu + cy * fv;
+            const pz = az * fw + bz * fu + cz * fv;
+
+            const gi = Math.round((px - xMin) / dx);
+            const gj = Math.round((py - yMin) / dy);
+            const gk = Math.round((pz - zMin) / dz);
+            if (gi >= 2 && gi < nx - 2 && gj >= 0 && gj < ny - 1 && gk >= 1 && gk < nz - 1) {
+              solid[this.idx(gi, gj, gk)] = 1;
+              const ck = gk * nx + gi;
+              if (gj < colMinJ[ck]) colMinJ[ck] = gj;
+              if (gj > colMaxJ[ck]) colMaxJ[ck] = gj;
+            }
+
+            // 2D Frontal YZ Projection
+            const pi = Math.floor(((pz - pZMin) / pZSpan) * projW);
+            const pj = Math.floor(((py - pYMin) / pYSpan) * projH);
+            if (pi >= 0 && pi < projW && pj >= 0 && pj < projH) {
+              projMask[pj * projW + pi] = 1;
+            }
+          }
+        }
+      }
+
+      // Close small gaps in 2D frontal projection + count projected frontal area
+      let projPixels = 0;
+      const projClosed = new Uint8Array(projMask);
+      for (let j = 1; j < projH - 1; j++) {
+        for (let i = 1; i < projW - 1; i++) {
+          const id = j * projW + i;
+          if (!projMask[id]) {
+            const nSum = projMask[id - 1] + projMask[id + 1] + projMask[id - projW] + projMask[id + projW];
+            if (nSum >= 3) projClosed[id] = 1;
+          }
+          if (projClosed[id]) projPixels++;
+        }
+      }
+      const cellAreaYZ = (pZSpan / projW) * (pYSpan / projH);
+      const frontalArea = Math.max(0.18, projPixels * cellAreaYZ);
+
+      // Fill interior vertical spans carefully (preserve underbody gap & space beneath elevated rear wings)
+      for (let k = 1; k < nz - 1; k++) {
+        for (let i = 2; i < nx - 2; i++) {
+          const ck = k * nx + i;
+          const j0 = colMinJ[ck], j1 = colMaxJ[ck];
+          if (j1 > j0 + 1) {
+            // Fill contiguous body intervals while leaving open air gaps >= 3 cells (e.g. under raised wing)
+            let gapStart = -1;
+            for (let j = j0 + 1; j < j1; j++) {
+              if (!solid[this.idx(i, j, k)]) {
+                if (gapStart < 0) gapStart = j;
+              } else {
+                if (gapStart >= 0 && (j - gapStart) <= 7) {
+                  for (let jf = gapStart; jf < j; jf++) solid[this.idx(i, jf, k)] = 1;
+                }
+                gapStart = -1;
+              }
+            }
+            if (gapStart >= 0 && (j1 - gapStart) <= 7) {
+              for (let jf = gapStart; jf < j1; jf++) solid[this.idx(i, jf, k)] = 1;
+            }
+          }
+        }
+      }
+
+      // 2. Solve 3D Laplace Potential Flow (Red-Black SOR)
+      const phi = this.phi;
+      for (let k = 0; k < nz; k++) {
+        for (let j = 0; j < ny; j++) {
+          for (let i = 0; i < nx; i++) {
+            phi[this.idx(i, j, k)] = xMin + i * dx;
+          }
+        }
+      }
+
+      const invDx2 = 1 / (dx * dx);
+      const invDy2 = 1 / (dy * dy);
+      const invDz2 = 1 / (dz * dz);
+      const omega = 1.66;
+      const iters = 64;
+
+      for (let it = 0; it < iters; it++) {
+        for (let parity = 0; parity < 2; parity++) {
+          for (let k = 0; k < nz; k++) {
+            const kOff = k * ny * nx;
+            for (let j = 0; j < ny; j++) {
+              const rowOff = kOff + j * nx;
+              let i = 1 + ((j + k + parity) & 1);
+              for (; i < nx - 1; i += 2) {
+                const id = rowOff + i;
+                if (solid[id]) continue;
+                let sum = 0, wSum = 0;
+                // X neighbors
+                if (!solid[id - 1]) { sum += phi[id - 1] * invDx2; wSum += invDx2; }
+                if (!solid[id + 1]) { sum += phi[id + 1] * invDx2; wSum += invDx2; }
+                // Y neighbors (floor j=0 and ceiling j=ny-1 are Neumann)
+                if (j > 0 && !solid[id - nx]) { sum += phi[id - nx] * invDy2; wSum += invDy2; }
+                if (j < ny - 1 && !solid[id + nx]) { sum += phi[id + nx] * invDy2; wSum += invDy2; }
+                // Z neighbors
+                if (k > 0 && !solid[id - nx * ny]) { sum += phi[id - nx * ny] * invDz2; wSum += invDz2; }
+                if (k < nz - 1 && !solid[id + nx * ny]) { sum += phi[id + nx * ny] * invDz2; wSum += invDz2; }
+                if (wSum > 0) {
+                  phi[id] = phi[id] + omega * (sum / wSum - phi[id]);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 3. Compute Potential Velocity Field u = grad(phi)
+      const u = this.u, v = this.v, w = this.w;
+      u.fill(0); v.fill(0); w.fill(0);
+      for (let k = 0; k < nz; k++) {
+        for (let j = 0; j < ny; j++) {
+          for (let i = 0; i < nx; i++) {
+            const id = this.idx(i, j, k);
+            if (solid[id]) continue;
+
+            // du/dx
+            let ux = 1.0;
+            if (i === 0 || i === nx - 1) ux = 1.0;
+            else {
+              const lFluid = !solid[id - 1], rFluid = !solid[id + 1];
+              if (lFluid && rFluid) ux = (phi[id + 1] - phi[id - 1]) / (2 * dx);
+              else if (rFluid) ux = (phi[id + 1] - phi[id]) / dx;
+              else if (lFluid) ux = (phi[id] - phi[id - 1]) / dx;
+              else ux = 0.0;
+            }
+            // dv/dy
+            let uy = 0.0;
+            const dFluid = j > 0 && !solid[id - nx];
+            const uFluid = j < ny - 1 && !solid[id + nx];
+            if (dFluid && uFluid) uy = (phi[id + nx] - phi[id - nx]) / (2 * dy);
+            else if (uFluid) uy = (phi[id + nx] - phi[id]) / dy;
+            else if (dFluid) uy = (phi[id] - phi[id - nx]) / dy;
+
+            // dw/dz
+            let uz = 0.0;
+            const bFluid = k > 0 && !solid[id - nx * ny];
+            const fFluid = k < nz - 1 && !solid[id + nx * ny];
+            if (bFluid && fFluid) uz = (phi[id + nx * ny] - phi[id - nx * ny]) / (2 * dz);
+            else if (fFluid) uz = (phi[id + nx * ny] - phi[id]) / dz;
+            else if (bFluid) uz = (phi[id] - phi[id - nx * ny]) / dz;
+
+            // Clamp unphysical sharp-corner potential spikes
+            const spd = Math.hypot(ux, uy, uz);
+            if (spd > 1.85) {
+              const s = 1.85 / spd;
+              ux *= s; uy *= s; uz *= s;
+            }
+            u[id] = ux; v[id] = uy; w[id] = uz;
+          }
+        }
+      }
+
+      // 4. Viscous Wake, Separation Deficit & Trailing Vortex Swirl
+      const wake = this.wake;
+      const turb = this.turb;
+      const cpGrid = this.cpGrid;
+      wake.fill(0);
+      turb.fill(0);
+
+      for (let i = 1; i < nx; i++) {
+        for (let k = 1; k < nz - 1; k++) {
+          for (let j = 0; j < ny - 1; j++) {
+            const id = this.idx(i, j, k);
+            if (solid[id]) {
+              wake[id] = 0;
+              continue;
+            }
+            const prevId = id - 1;
+            if (solid[prevId]) {
+              // Directly behind a solid rear face -> inject separation wake
+              wake[id] = 1.0;
+            } else {
+              // Advect & diffuse wake downstream with exponential decay
+              const wC = wake[prevId];
+              const wU = j < ny - 1 ? wake[prevId + nx] : wC;
+              const wD = j > 0 ? wake[prevId - nx] : wC;
+              const wL = wake[prevId - nx * ny];
+              const wR = wake[prevId + nx * ny];
+              wake[id] = (wC * 0.62 + (wU + wD + wL + wR) * 0.095) * 0.965;
+            }
+          }
+        }
+      }
+
+      // Apply wake velocity deficit + subtle trailing counter-rotating vortex swirl + turbulence
+      const bCenterZ = (mesh.bounds.minZ + mesh.bounds.maxZ) * 0.5;
+      const bMidY = (mesh.bounds.minY + mesh.bounds.maxY) * 0.52;
+      for (let k = 1; k < nz - 1; k++) {
+        const z = zMin + k * dz;
+        for (let j = 0; j < ny - 1; j++) {
+          const y = yMin + j * dy;
+          for (let i = 1; i < nx - 1; i++) {
+            const id = this.idx(i, j, k);
+            if (solid[id]) {
+              cpGrid[id] = 0;
+              continue;
+            }
+            const wk = wake[id];
+            if (wk > 0.01) {
+              // Slow streamwise velocity in wake core
+              u[id] *= (1.0 - 0.68 * wk);
+              // Gentle downwash / wake closing + counter-rotating C-pillar / wingtip vortex
+              const dzRel = z - bCenterZ;
+              const dyRel = y - bMidY;
+              const swirl = wk * 0.28 * Math.exp(-0.6 * (dyRel * dyRel + dzRel * dzRel));
+              const signZ = dzRel >= 0 ? 1 : -1;
+              v[id] += -0.14 * wk * clamp(dyRel, -0.6, 0.8) + swirl * signZ * dzRel * 0.35;
+              w[id] += -0.16 * wk * clamp(dzRel, -1.0, 1.0) - swirl * dyRel * 0.35;
+            }
+
+            // Shear / vorticity proxy for turbulence visualization
+            const duDy = (j > 0 && j < ny - 1) ? (u[id + nx] - u[id - nx]) / (2 * dy) : 0;
+            const duDz = (u[id + nx * ny] - u[id - nx * ny]) / (2 * dz);
+            const dvDx = (v[id + 1] - v[id - 1]) / (2 * dx);
+            const dwDx = (w[id + 1] - w[id - 1]) / (2 * dx);
+            const curlMag = Math.hypot(duDy - dvDx, duDz - dwDx);
+            turb[id] = clamp(wk * 0.72 + curlMag * 0.22, 0, 1.5);
+
+            const spd2 = u[id] * u[id] + v[id] * v[id] + w[id] * w[id];
+            // Bernoulli Cp outside wake, negative base pressure inside separated wake
+            const bernCp = clamp(1.0 - spd2, -1.6, 1.0);
+            const wakeCp = -0.36 * wk;
+            cpGrid[id] = lerp(bernCp, wakeCp, clamp(wk * 1.15, 0, 0.88));
+          }
+        }
+      }
+
+      // 5. Compute Per-Vertex Surface Cp & Integrate Aerodynamic Forces
+      const vCount = pos.length / 3;
+      const vertexCp = new Float32Array(vCount);
+      const norms = mesh.normals;
+      const sampleOffset = Math.max(dx, dy) * 1.05;
+
+      for (let vi = 0; vi < vCount; vi++) {
+        const j = vi * 3;
+        const px = pos[j], py = pos[j + 1], pz = pos[j + 2];
+        const nxv = norms[j], nyv = norms[j + 1], nzv = norms[j + 2];
+        const s = this.sample(px + nxv * sampleOffset, Math.max(0.03, py + nyv * sampleOffset), pz + nzv * sampleOffset);
+
+        // Local potential/viscous Cp blended with physical windward stagnation & leeward base suction
+        const windward = clamp(-nxv, 0, 1); // nose facing -X into +X wind
+        const leeward = clamp(nxv, 0, 1);    // tail facing +X
+        let cp = s.cp;
+        if (windward > 0.05) {
+          // Stagnation pressure boost on windward surfaces (nose, bumper, windshield)
+          const stagCp = 0.92 * Math.pow(windward, 1.35);
+          cp = lerp(cp, Math.max(cp, stagCp), windward * 0.78);
+        }
+        if (leeward > 0.15) {
+          // Separated rear base suction (prevents ideal-flow pressure recovery!)
+          const sepFactor = clamp(s.wake * 1.2 + leeward * 0.45, 0, 1);
+          const baseCp = -0.28 - 0.18 * leeward;
+          cp = lerp(cp, baseCp, sepFactor * 0.78);
+        }
+        // Ground-effect Venturi suction on low underbody surfaces
+        if (nyv < -0.55 && py < 0.35) {
+          const geBoost = smoothstep(0.35, 0.08, py) * 0.32;
+          cp -= geBoost;
+        }
+        vertexCp[vi] = clamp(cp, -1.45, 1.0);
+      }
+
+      // Integrate pressure & skin friction over all mesh triangles
+      let fxP = 0, fyP = 0, fzP = 0, wettedArea = 0;
+      for (let t = 0; t < triCount; t++) {
+        const ia = ind[t * 3], ib = ind[t * 3 + 1], ic = ind[t * 3 + 2];
+        const a = ia * 3, b = ib * 3, c = ic * 3;
+        const e1x = pos[b] - pos[a], e1y = pos[b + 1] - pos[a + 1], e1z = pos[b + 2] - pos[a + 2];
+        const e2x = pos[c] - pos[a], e2y = pos[c + 1] - pos[a + 1], e2z = pos[c + 2] - pos[a + 2];
+        const cx = e1y * e2z - e1z * e2y;
+        const cy = e1z * e2x - e1x * e2z;
+        const cz = e1x * e2y - e1y * e2x;
+        const area2 = Math.hypot(cx, cy, cz);
+        if (area2 < 1e-8) continue;
+        const dA = 0.5 * area2;
+        wettedArea += dA;
+        let tnx = cx / area2, tny = cy / area2, tnz = cz / area2;
+        // Ensure triangle normal agrees with vertex normal orientation
+        const avgNx = norms[a] + norms[b] + norms[c];
+        const avgNy = norms[a + 1] + norms[b + 1] + norms[c + 1];
+        const avgNz = norms[a + 2] + norms[b + 2] + norms[c + 2];
+        if (tnx * avgNx + tny * avgNy + tnz * avgNz < 0) {
+          tnx = -tnx; tny = -tny; tnz = -tnz;
+        }
+        const cpTri = (vertexCp[ia] + vertexCp[ib] + vertexCp[ic]) / 3;
+        // Pressure pushes inward along -n: dF = -Cp * dA * n
+        fxP += -cpTri * dA * tnx;
+        fyP += -cpTri * dA * tny;
+        fzP += -cpTri * dA * tnz;
+      }
+
+      // Skin friction drag coefficient (turbulent flat plate Schlichting approximation at Re ~ 1e7)
+      const cfSkin = 0.0032;
+      const fxTotal = Math.max(0.04 * frontalArea, fxP * 0.34 + cfSkin * wettedArea);
+      const cd = clamp(fxTotal / frontalArea, 0.04, 1.55);
+      const cl = clamp((fyP * 0.36) / frontalArea, -3.2, 2.2);
+      const cyCoeff = clamp((fzP * 0.48) / frontalArea, -2.0, 2.0);
+
+      // Compute centerline Cp profile (40 bins from model minX to maxX along upper silhouette in 3D grid)
+      const cpProfile = new Float32Array(40);
+      const minX = mesh.bounds.minX, lenX = Math.max(0.1, mesh.bounds.lenX);
+      const midK = clamp(Math.round(((mesh.bounds.minZ + mesh.bounds.maxZ) * 0.5 - zMin) / dz), 1, nz - 2);
+      for (let b = 0; b < 40; b++) {
+        const x = minX + (b / 39) * lenX;
+        const gi = clamp(Math.round((x - xMin) / dx), 1, nx - 2);
+        // Find top solid voxel at centerline (or nearby k)
+        let topJ = -1;
+        for (let j = ny - 2; j >= 0; j--) {
+          if (solid[this.idx(gi, j, midK)] || solid[this.idx(gi, j, Math.max(1, midK - 1))] || solid[this.idx(gi, j, Math.min(nz - 2, midK + 1))]) {
+            topJ = j;
+            break;
+          }
+        }
+        const ySample = topJ >= 0 ? Math.min(this.yMax - 0.1, yMin + (topJ + 1.25) * dy) : (mesh.bounds.minY + mesh.bounds.maxY) * 0.55;
+        const s = this.sample(x, ySample, (mesh.bounds.minZ + mesh.bounds.maxZ) * 0.5);
+        // Blend front nose stagnation cleanly for first few bins
+        const noseWeight = b < 4 ? (1 - b / 4) * 0.65 : 0;
+        cpProfile[b] = clamp(lerp(s.cp, 0.85, noseWeight), -1.2, 1.0);
+      }
+
+      this.metrics = {
+        cd,
+        cl,
+        cy: cyCoeff,
+        frontalArea,
+        refLength: lenX,
+        solveMs: performance.now() - t0,
+        cpProfile,
+      };
+      return vertexCp;
+    }
+
+    sample(x, y, z) {
+      const fx = clamp((x - this.xMin) / this.dx, 0, this.nx - 1.001);
+      const fy = clamp((y - this.yMin) / this.dy, 0, this.ny - 1.001);
+      const fz = clamp((z - this.zMin) / this.dz, 0, this.nz - 1.001);
+      const i0 = fx | 0, j0 = fy | 0, k0 = fz | 0;
+      const tx = fx - i0, ty = fy - j0, tz = fz - k0;
+      const { nx, ny } = this;
+      const strideZ = nx * ny;
+      const base = (k0 * ny + j0) * nx + i0;
+
+      const c000 = base, c100 = base + 1;
+      const c010 = base + nx, c110 = base + nx + 1;
+      const c001 = base + strideZ, c101 = base + strideZ + 1;
+      const c011 = base + strideZ + nx, c111 = base + strideZ + nx + 1;
+
+      const w000 = (1 - tx) * (1 - ty) * (1 - tz);
+      const w100 = tx * (1 - ty) * (1 - tz);
+      const w010 = (1 - tx) * ty * (1 - tz);
+      const w110 = tx * ty * (1 - tz);
+      const w001 = (1 - tx) * (1 - ty) * tz;
+      const w101 = tx * (1 - ty) * tz;
+      const w011 = (1 - tx) * ty * tz;
+      const w111 = tx * ty * tz;
+
+      const u = this.u, v = this.v, w = this.w, cp = this.cpGrid, tb = this.turb, wk = this.wake;
+      const vx = u[c000]*w000 + u[c100]*w100 + u[c010]*w010 + u[c110]*w110 + u[c001]*w001 + u[c101]*w101 + u[c011]*w011 + u[c111]*w111;
+      const vy = v[c000]*w000 + v[c100]*w100 + v[c010]*w010 + v[c110]*w110 + v[c001]*w001 + v[c101]*w101 + v[c011]*w011 + v[c111]*w111;
+      const vz = w[c000]*w000 + w[c100]*w100 + w[c010]*w010 + w[c110]*w110 + w[c001]*w001 + w[c101]*w101 + w[c011]*w011 + w[c111]*w111;
+      const cpV = cp[c000]*w000 + cp[c100]*w100 + cp[c010]*w010 + cp[c110]*w110 + cp[c001]*w001 + cp[c101]*w101 + cp[c011]*w011 + cp[c111]*w111;
+      const tbV = tb[c000]*w000 + tb[c100]*w100 + tb[c010]*w010 + tb[c110]*w110 + tb[c001]*w001 + tb[c101]*w101 + tb[c011]*w011 + tb[c111]*w111;
+      const wkV = wk[c000]*w000 + wk[c100]*w100 + wk[c010]*w010 + wk[c110]*w110 + wk[c001]*w001 + wk[c101]*w101 + wk[c011]*w011 + wk[c111]*w111;
+      const isSolid = this.solid[c000] === 1;
+      return { vx, vy, vz, speed: Math.hypot(vx, vy, vz), cp: cpV, turb: tbV, wake: wkV, solid: isSolid };
+    }
+
+    buildStreamlineGeometry(rakeMode, count, rakeOffset, bounds) {
+      const seeds = [];
+      const xStart = -4.15;
+      const maxH = Math.max(1.85, bounds.maxY + 0.55);
+      const halfW = Math.max(1.05, bounds.lenZ * 0.62);
+
+      if (rakeMode === 'vertical') {
+        // Multi-plane vertical smoke rake (center + slight lateral spread for rich 3D depth)
+        const planes = count >= 24 ? 3 : 1;
+        const perPlane = Math.max(4, Math.round(count / planes));
+        const zOffsets = planes === 3 ? [rakeOffset - 0.52, rakeOffset, rakeOffset + 0.52] : [rakeOffset];
+        for (const z0 of zOffsets) {
+          for (let i = 0; i < perPlane; i++) {
+            const y0 = 0.08 + (i / (perPlane - 1)) * (maxH - 0.08);
+            seeds.push([xStart, y0, clamp(z0, -2.5, 2.5)]);
+          }
+        }
+      } else if (rakeMode === 'horizontal') {
+        const rows = count >= 24 ? 2 : 1;
+        const perRow = Math.max(6, Math.round(count / rows));
+        const yBase = clamp(0.65 + rakeOffset * 0.55, 0.14, 2.3);
+        const yRows = rows === 2 ? [Math.max(0.14, yBase - 0.28), yBase + 0.28] : [yBase];
+        for (const y0 of yRows) {
+          for (let i = 0; i < perRow; i++) {
+            const z0 = -halfW + (i / (perRow - 1)) * (halfW * 2);
+            seeds.push([xStart, y0, z0]);
+          }
+        }
+      } else {
+        // 3D Matrix grid
+        const cols = Math.max(3, Math.round(Math.sqrt(count * 1.4)));
+        const rows = Math.max(3, Math.round(count / cols));
+        for (let r = 0; r < rows; r++) {
+          const y0 = clamp(0.12 + (r / (rows - 1)) * (maxH - 0.14) + rakeOffset * 0.25, 0.10, 2.9);
+          for (let c = 0; c < cols; c++) {
+            const z0 = -halfW + (c / (cols - 1)) * (halfW * 2);
+            seeds.push([xStart, y0, z0]);
+          }
+        }
+      }
+
+      // Integrate each seed via RK2 into camera-facing ribbon strips
+      const pos = [];
+      const tan = [];
+      const side = [];
+      const meta = []; // [arcLen, speed, cp, turb]
+      const indices = [];
+
+      const maxSteps = 128;
+      const dt = 0.095;
+
+      for (let sIdx = 0; sIdx < seeds.length; sIdx++) {
+        let [x, y, z] = seeds[sIdx];
+        const pts = [];
+        let arc = 0;
+        for (let step = 0; step < maxSteps; step++) {
+          if (x > this.xMax - 0.15 || y < 0.02 || y > this.yMax - 0.05 || Math.abs(z) > this.zMax - 0.08) break;
+          const k1 = this.sample(x, y, z);
+          const spd1 = Math.max(0.12, k1.speed);
+          const mx = x + k1.vx * dt * 0.5;
+          const my = clamp(y + k1.vy * dt * 0.5, 0.02, this.yMax - 0.05);
+          const mz = clamp(z + k1.vz * dt * 0.5, this.zMin + 0.05, this.zMax - 0.05);
+          const k2 = this.sample(mx, my, mz);
+          // Prevent streamlines stalling completely inside wake core
+          const vx = k2.vx < 0.09 ? 0.09 : k2.vx;
+          const vy = k2.vy;
+          const vz = k2.vz;
+          pts.push({ x, y, z, arc, speed: k1.speed, cp: k1.cp, turb: k1.turb });
+          const stepLen = Math.hypot(vx * dt, vy * dt, vz * dt);
+          x += vx * dt;
+          y = clamp(y + vy * dt, 0.025, this.yMax - 0.05);
+          z = clamp(z + vz * dt, this.zMin + 0.05, this.zMax - 0.05);
+          arc += stepLen;
+          if (spd1 < 0.02 && step > 10) break;
+        }
+        if (pts.length < 4) continue;
+
+        const baseV = pos.length / 3;
+        for (let i = 0; i < pts.length; i++) {
+          const p = pts[i];
+          const pPrev = pts[Math.max(0, i - 1)];
+          const pNext = pts[Math.min(pts.length - 1, i + 1)];
+          let tx = pNext.x - pPrev.x, ty = pNext.y - pPrev.y, tz = pNext.z - pPrev.z;
+          const tl = Math.hypot(tx, ty, tz) || 1;
+          tx /= tl; ty /= tl; tz /= tl;
+          // 2 vertices per point (side -1 and +1)
+          for (const sd of [-1, 1]) {
+            pos.push(p.x, p.y, p.z);
+            tan.push(tx, ty, tz);
+            side.push(sd);
+            meta.push(p.arc, p.speed, p.cp, p.turb);
+          }
+          if (i < pts.length - 1) {
+            const v0 = baseV + i * 2;
+            indices.push(v0, v0 + 1, v0 + 2, v0 + 1, v0 + 3, v0 + 2);
+          }
+        }
+      }
+
+      return {
+        positions: new Float32Array(pos),
+        tangents: new Float32Array(tan),
+        sides: new Float32Array(side),
+        meta: new Float32Array(meta),
+        indices: new Uint32Array(indices),
+      };
+    }
+  }
+
+  /* ============================================================================
+   * 7. SCIENTIFIC COLORMAP (JS + GLSL SHARED)
+   * ========================================================================== */
+  function aeroColorRGB(t) {
+    t = clamp(t, 0, 1);
+    const stops = [
+      [0.00, 0.08, 0.22, 0.58],
+      [0.24, 0.06, 0.62, 0.85],
+      [0.48, 0.16, 0.80, 0.52],
+      [0.74, 0.96, 0.78, 0.20],
+      [1.00, 0.90, 0.20, 0.16],
+    ];
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (t <= stops[i + 1][0]) {
+        const f = (t - stops[i][0]) / (stops[i + 1][0] - stops[i][0]);
+        return [
+          lerp(stops[i][1], stops[i + 1][1], f),
+          lerp(stops[i][2], stops[i + 1][2], f),
+          lerp(stops[i][3], stops[i + 1][3], f),
+        ];
+      }
+    }
+    return [0.90, 0.20, 0.16];
+  }
+
+  /* ============================================================================
+   * 8. WEBGL2 RENDERER (5 CUSTOM SHADERS)
+   * ========================================================================== */
+  class WindTunnelRenderer {
+    constructor(canvas) {
+      this.canvas = canvas;
+      const gl = canvas.getContext('webgl2', { antialias: true, alpha: false, preserveDrawingBuffer: true });
+      if (!gl) throw new Error('이 브라우저는 WebGL2를 지원하지 않습니다.');
+      this.gl = gl;
+      this.isLightTheme = false;
+      this.initShaders();
+      this.initTunnelGeometry();
+      this.initParticleSystem(1800);
+      this.initSliceQuad();
+      this.modelVao = null;
+      this.wireVao = null;
+      this.streamVao = null;
+      this.modelIndexCount = 0;
+      this.wireVertexCount = 0;
+      this.streamIndexCount = 0;
+      this.modelHasWheels = false;
+      this.wheelMeta = { fx: -1.34, fy: 0.34, rx: 1.32, ry: 0.36 };
+      this.modelBounds = { minX: -2.2, maxX: 2.2, minY: 0, maxY: 1.25, minZ: -1, maxZ: 1 };
+    }
+
+    compileShader(type, src) {
+      const gl = this.gl;
+      const sh = gl.createShader(type);
+      gl.shaderSource(sh, src);
+      gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+        const log = gl.getShaderInfoLog(sh);
+        gl.deleteShader(sh);
+        throw new Error('Shader compile error: ' + log);
+      }
+      return sh;
+    }
+
+    createProgram(vsSrc, fsSrc) {
+      const gl = this.gl;
+      const prog = gl.createProgram();
+      gl.attachShader(prog, this.compileShader(gl.VERTEX_SHADER, vsSrc));
+      gl.attachShader(prog, this.compileShader(gl.FRAGMENT_SHADER, fsSrc));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        throw new Error('Program link error: ' + gl.getProgramInfoLog(prog));
+      }
+      return prog;
+    }
+
+    initShaders() {
+      const COLORMAP_GLSL = `
+        vec3 aeroColormap(float t) {
+          t = clamp(t, 0.0, 1.0);
+          vec3 c0 = vec3(0.08, 0.22, 0.58);
+          vec3 c1 = vec3(0.06, 0.62, 0.85);
+          vec3 c2 = vec3(0.16, 0.80, 0.52);
+          vec3 c3 = vec3(0.96, 0.78, 0.20);
+          vec3 c4 = vec3(0.90, 0.20, 0.16);
+          if (t < 0.25) return mix(c0, c1, t / 0.25);
+          if (t < 0.50) return mix(c1, c2, (t - 0.25) / 0.25);
+          if (t < 0.75) return mix(c2, c3, (t - 0.50) / 0.25);
+          return mix(c3, c4, (t - 0.75) / 0.25);
+        }
+      `;
+
+      // 1. Model Shader (Studio PBR / Cp Pressure Heatmap / X-Ray CAD)
+      this.modelProg = this.createProgram(
+        `#version 300 es
+        precision highp float;
+        layout(location=0) in vec3 aPos;
+        layout(location=1) in vec3 aNorm;
+        layout(location=2) in float aPart;
+        layout(location=3) in float aCp;
+        uniform mat4 uViewProj;
+        uniform float uWheelSpin;
+        uniform float uHasWheels;
+        uniform vec2 uFrontAxle;
+        uniform vec2 uRearAxle;
+        out vec3 vWorldPos;
+        out vec3 vNormal;
+        flat out float vPart;
+        out float vCp;
+        void main() {
+          vec3 pos = aPos;
+          vec3 nrm = aNorm;
+          if (uHasWheels > 0.5 && (abs(aPart - 1.0) < 0.2 || abs(aPart - 5.0) < 0.2)) {
+            vec2 axle = pos.x < 0.0 ? uFrontAxle : uRearAxle;
+            vec2 rel = pos.xy - axle;
+            float c = cos(uWheelSpin), s = sin(uWheelSpin);
+            pos.x = axle.x + rel.x * c - rel.y * s;
+            pos.y = axle.y + rel.x * s + rel.y * c;
+            nrm.xy = vec2(nrm.x * c - nrm.y * s, nrm.x * s + nrm.y * c);
+          }
+          vWorldPos = pos;
+          vNormal = normalize(nrm);
+          vPart = aPart;
+          vCp = aCp;
+          gl_Position = uViewProj * vec4(pos, 1.0);
+        }`,
+        `#version 300 es
+        precision highp float;
+        in vec3 vWorldPos;
+        in vec3 vNormal;
+        flat in float vPart;
+        in float vCp;
+        uniform vec3 uCamPos;
+        uniform int uSurfaceMode; // 0=studio, 1=pressure, 2=wireframe-xray
+        uniform float uLightTheme;
+        out vec4 fragColor;
+        ${COLORMAP_GLSL}
+        void main() {
+          vec3 N = normalize(vNormal);
+          if (!gl_FrontFacing) N = -N;
+          vec3 V = normalize(uCamPos - vWorldPos);
+          float ndv = max(dot(N, V), 0.0);
+          float fresnel = pow(1.0 - ndv, 3.6);
+
+          // Studio Wind Tunnel Lighting (2 overhead softboxes + key + floor bounce)
+          vec3 L1 = normalize(vec3(-0.35, 0.92, 0.45));
+          vec3 L2 = normalize(vec3(0.45, 0.85, -0.52));
+          vec3 H1 = normalize(L1 + V);
+          vec3 H2 = normalize(L2 + V);
+          float diff1 = max(dot(N, L1), 0.0);
+          float diff2 = max(dot(N, L2), 0.0);
+          float hemi = 0.5 + 0.5 * N.y;
+
+          // Overhead softbox reflection ribbon (gives realistic automotive studio sheen!)
+          vec3 R = reflect(-V, N);
+          float softbox = smoothstep(0.62, 0.92, R.y) * smoothstep(0.55, 0.12, abs(R.z));
+          float aoFloor = smoothstep(-0.05, 0.42, vWorldPos.y);
+
+          if (uSurfaceMode == 1) {
+            // Surface Cp Heatmap (-1.2 -> +1.0)
+            float t = clamp((vCp + 1.2) / 2.2, 0.0, 1.0);
+            vec3 base = aeroColormap(t);
+            // Crisp iso-Cp contour lines every 0.20 Cp
+            float contour = abs(fract((vCp + 2.0) * 5.0) - 0.5);
+            float line = 1.0 - smoothstep(0.0, 0.045, contour);
+            vec3 lit = base * (0.48 + 0.52 * (0.65 * diff1 + 0.35 * diff2)) + vec3(0.16) * pow(max(dot(N, H1), 0.0), 42.0);
+            lit = mix(lit, lit * 0.62, line * 0.45);
+            fragColor = vec4(lit, 1.0);
+            return;
+          }
+
+          if (uSurfaceMode == 2) {
+            vec3 col = mix(vec3(0.10, 0.24, 0.36), vec3(0.32, 0.72, 0.96), fresnel);
+            fragColor = vec4(col, 0.26 + 0.35 * fresnel);
+            return;
+          }
+
+          // Studio multi-material car shader
+          vec3 albedo = mix(vec3(0.76, 0.81, 0.88), vec3(0.18, 0.32, 0.52), uLightTheme * 0.35);
+          float rough = 0.16;
+          float specStr = 0.85;
+          float clearcoat = 0.75;
+
+          if (abs(vPart - 1.0) < 0.3) { // Tire rubber
+            albedo = vec3(0.09, 0.10, 0.11); rough = 0.78; specStr = 0.15; clearcoat = 0.0;
+          } else if (abs(vPart - 2.0) < 0.3) { // Tinted glass
+            albedo = vec3(0.05, 0.08, 0.12); rough = 0.06; specStr = 1.25; clearcoat = 1.0;
+          } else if (abs(vPart - 3.0) < 0.3) { // Satin carbon aero
+            albedo = vec3(0.13, 0.14, 0.16); rough = 0.38; specStr = 0.45; clearcoat = 0.25;
+          } else if (abs(vPart - 4.0) < 0.3) { // LED headlights / taillights
+            albedo = vWorldPos.x < 0.0 ? vec3(0.95, 0.98, 1.0) : vec3(0.95, 0.16, 0.14);
+            fragColor = vec4(albedo * 1.15, 1.0);
+            return;
+          } else if (abs(vPart - 5.0) < 0.3) { // Brushed metallic alloy rim
+            albedo = vec3(0.68, 0.71, 0.76); rough = 0.22; specStr = 1.1; clearcoat = 0.4;
+          }
+
+          float specPow = mix(96.0, 12.0, rough);
+          float spec = pow(max(dot(N, H1), 0.0), specPow) * 0.85 + pow(max(dot(N, H2), 0.0), specPow * 0.8) * 0.55;
+          vec3 ambCol = mix(vec3(0.12, 0.15, 0.20), vec3(0.45, 0.50, 0.58), uLightTheme);
+          vec3 skyCol = mix(vec3(0.28, 0.34, 0.44), vec3(0.85, 0.90, 0.96), uLightTheme);
+          vec3 col = albedo * (mix(ambCol, skyCol, hemi) * 0.72 + vec3(0.98, 0.99, 1.0) * (diff1 * 0.68 + diff2 * 0.36));
+          col += vec3(0.95, 0.98, 1.0) * (spec * specStr + softbox * clearcoat * (0.28 + 0.55 * fresnel));
+          col *= (0.72 + 0.28 * aoFloor);
+          // Subtle rim edge highlight
+          col += vec3(0.32, 0.58, 0.92) * fresnel * clearcoat * 0.22;
+          fragColor = vec4(col, 1.0);
+        }`
+      );
+
+      // 2. Wireframe Line Shader
+      this.wireProg = this.createProgram(
+        `#version 300 es
+        precision highp float;
+        layout(location=0) in vec3 aPos;
+        uniform mat4 uViewProj;
+        void main() { gl_Position = uViewProj * vec4(aPos, 1.0); }`,
+        `#version 300 es
+        precision highp float;
+        uniform vec4 uColor;
+        out vec4 fragColor;
+        void main() { fragColor = uColor; }`
+      );
+
+      // 3. Architectural Wind Tunnel Floor & Rolling-Road Shader
+      this.tunnelProg = this.createProgram(
+        `#version 300 es
+        precision highp float;
+        layout(location=0) in vec3 aPos;
+        uniform mat4 uViewProj;
+        out vec3 vPos;
+        void main() {
+          vPos = aPos;
+          gl_Position = uViewProj * vec4(aPos, 1.0);
+        }`,
+        `#version 300 es
+        precision highp float;
+        in vec3 vPos;
+        uniform float uBeltOffset;
+        uniform float uYawRad;
+        uniform float uLightTheme;
+        uniform vec4 uShadowBox; // minX, maxX, minZ, maxZ
+        out vec4 fragColor;
+        void main() {
+          vec2 p = vPos.xz;
+          float dist = length(p * vec2(0.55, 0.85));
+
+          vec3 baseDark = vec3(0.085, 0.10, 0.13);
+          vec3 baseLight = vec3(0.87, 0.89, 0.93);
+          vec3 col = mix(baseDark, baseLight, uLightTheme);
+
+          // Metric 1m engineering grid
+          vec2 g = abs(fract(p - 0.5) - 0.5) / fwidth(p);
+          float gridLine = 1.0 - min(min(g.x, g.y), 1.0);
+          vec3 gridCol = mix(vec3(0.18, 0.23, 0.30), vec3(0.74, 0.78, 0.84), uLightTheme);
+          col = mix(col, gridCol, gridLine * 0.32 * smoothstep(10.0, 2.5, dist));
+
+          // Yaw Turntable Disk (radius 2.75m)
+          float r = length(p);
+          float ring = smoothstep(0.045, 0.012, abs(r - 2.72));
+          // Rotating degree ticks on turntable perimeter
+          float ang = atan(p.y, p.x) + uYawRad;
+          float tick = smoothstep(0.92, 0.99, cos(ang * 36.0)) * smoothstep(2.58, 2.63, r) * smoothstep(2.74, 2.70, r);
+          col = mix(col, mix(vec3(0.28, 0.48, 0.72), vec3(0.22, 0.45, 0.78), uLightTheme), (ring * 0.65 + tick * 0.55));
+
+          // Rolling-Road Conveyor Belt under car
+          if (abs(p.y) < 1.18 && p.x > -3.1 && p.x < 3.4) {
+            vec3 beltCol = mix(vec3(0.055, 0.065, 0.085), vec3(0.76, 0.79, 0.84), uLightTheme);
+            // Moving belt tread bands
+            float strip = smoothstep(0.86, 0.96, sin((p.x - uBeltOffset) * 14.0));
+            // Subtle center guide line
+            float centerLine = smoothstep(0.025, 0.008, abs(p.y));
+            beltCol += mix(vec3(0.035), vec3(-0.04), uLightTheme) * strip;
+            beltCol = mix(beltCol, vec3(0.22, 0.60, 0.95), centerLine * 0.45);
+            float edge = smoothstep(1.18, 1.13, abs(p.y)) * smoothstep(-3.1, -3.02, p.x) * smoothstep(3.4, 3.32, p.x);
+            col = mix(col, beltCol, edge * 0.92);
+          }
+
+          // Wind direction chevrons at inlet (x ~ -3.8)
+          if (p.x > -4.3 && p.x < -3.3 && abs(p.y) < 1.8) {
+            float chev = abs(fract((p.x - abs(p.y) * 0.55 - uBeltOffset * 0.6) * 1.4) - 0.5);
+            float arrow = smoothstep(0.08, 0.02, chev) * smoothstep(1.8, 1.2, abs(p.y));
+            col = mix(col, vec3(0.18, 0.68, 0.96), arrow * 0.25);
+          }
+
+          // Soft ambient occlusion contact shadow directly under vehicle
+          vec2 boxCenter = vec2(0.5 * (uShadowBox.x + uShadowBox.y), 0.5 * (uShadowBox.z + uShadowBox.w));
+          vec2 boxHalf = max(vec2(0.45), vec2(0.5 * (uShadowBox.y - uShadowBox.x), 0.5 * (uShadowBox.w - uShadowBox.z)));
+          vec2 dBox = max(abs(p - boxCenter) - boxHalf * 0.82, 0.0);
+          float shDist = length(dBox);
+          float shadow = 1.0 - 0.58 * exp(-shDist * shDist * 2.8);
+          col *= shadow;
+
+          // Studio vignette fade into horizon
+          vec3 bg = mix(vec3(0.055, 0.07, 0.095), vec3(0.92, 0.94, 0.965), uLightTheme);
+          float fade = smoothstep(5.5, 13.5, dist);
+          col = mix(col, bg, fade);
+          fragColor = vec4(col, 1.0);
+        }`
+      );
+
+      // 4. 3D Volumetric Smoke Streamline Ribbon Shader
+      this.ribbonProg = this.createProgram(
+        `#version 300 es
+        precision highp float;
+        layout(location=0) in vec3 aPos;
+        layout(location=1) in vec3 aTan;
+        layout(location=2) in float aSide;
+        layout(location=3) in vec4 aMeta; // arcLen, speed, cp, turb
+        uniform mat4 uViewProj;
+        uniform vec3 uCamPos;
+        uniform float uWidth;
+        out float vSide;
+        out vec4 vMeta;
+        void main() {
+          vec3 viewDir = normalize(uCamPos - aPos);
+          vec3 right = normalize(cross(aTan, viewDir));
+          // Slightly widen ribbons in turbulent wake for natural smoke dispersion!
+          float w = uWidth * (1.0 + clamp(aMeta.w * 0.85, 0.0, 1.1));
+          vec3 worldPos = aPos + right * (aSide * w);
+          vSide = aSide;
+          vMeta = aMeta;
+          gl_Position = uViewProj * vec4(worldPos, 1.0);
+        }`,
+        `#version 300 es
+        precision highp float;
+        in float vSide;
+        in vec4 vMeta;
+        uniform float uTime;
+        uniform int uColorMode; // 0=velocity, 1=cp, 2=turbulence, 3=white smoke
+        uniform float uLightTheme;
+        out vec4 fragColor;
+        ${COLORMAP_GLSL}
+        void main() {
+          float arc = vMeta.x;
+          float spd = vMeta.y;
+          float cp = vMeta.z;
+          float tb = vMeta.w;
+
+          // Soft cross-ribbon Gaussian profile
+          float core = exp(-vSide * vSide * 3.4);
+          // Animated smoke pulses traveling smoothly downstream
+          float pulse = 0.62 + 0.38 * sin(arc * 2.1 - uTime * 7.5);
+          // Fade ends smoothly
+          float fadeIn = smoothstep(0.0, 0.65, arc);
+          float fadeOut = 1.0 - smoothstep(10.0, 12.0, arc);
+
+          vec3 col;
+          if (uColorMode == 0) col = aeroColormap(clamp(spd / 1.50, 0.0, 1.0));
+          else if (uColorMode == 1) col = aeroColormap(clamp((cp + 1.2) / 2.2, 0.0, 1.0));
+          else if (uColorMode == 2) col = aeroColormap(clamp(tb / 1.15, 0.0, 1.0));
+          else col = mix(vec3(0.92, 0.96, 1.0), vec3(0.18, 0.30, 0.45), uLightTheme * 0.72);
+
+          // Slightly diffuse alpha in wake turbulence
+          float alpha = core * pulse * fadeIn * fadeOut * mix(0.76, 0.45, clamp(tb * 0.6, 0.0, 0.7));
+          fragColor = vec4(col, alpha);
+        }`
+      );
+
+      // 5. 3D Airflow Particle Streak Shader
+      this.particleProg = this.createProgram(
+        `#version 300 es
+        precision highp float;
+        layout(location=0) in vec3 aPos;
+        layout(location=1) in vec4 aData; // speed, cp, turb, headTail(0/1)
+        uniform mat4 uViewProj;
+        out vec4 vData;
+        void main() {
+          vData = aData;
+          gl_Position = uViewProj * vec4(aPos, 1.0);
+        }`,
+        `#version 300 es
+        precision highp float;
+        in vec4 vData;
+        uniform int uColorMode;
+        uniform float uLightTheme;
+        out vec4 fragColor;
+        ${COLORMAP_GLSL}
+        void main() {
+          vec3 col;
+          if (uColorMode == 0) col = aeroColormap(clamp(vData.x / 1.50, 0.0, 1.0));
+          else if (uColorMode == 1) col = aeroColormap(clamp((vData.y + 1.2) / 2.2, 0.0, 1.0));
+          else if (uColorMode == 2) col = aeroColormap(clamp(vData.z / 1.15, 0.0, 1.0));
+          else col = mix(vec3(0.90, 0.95, 1.0), vec3(0.22, 0.34, 0.48), uLightTheme * 0.75);
+          float alpha = mix(0.08, 0.78, vData.w);
+          fragColor = vec4(col, alpha);
+        }`
+      );
+
+      // 6. 2D Interactive Flow Cut-Plane Slice Shader
+      this.sliceProg = this.createProgram(
+        `#version 300 es
+        precision highp float;
+        layout(location=0) in vec3 aPos;
+        layout(location=1) in vec2 aUv;
+        uniform mat4 uViewProj;
+        out vec2 vUv;
+        void main() {
+          vUv = aUv;
+          gl_Position = uViewProj * vec4(aPos, 1.0);
+        }`,
+        `#version 300 es
+        precision highp float;
+        in vec2 vUv;
+        uniform sampler2D uTex;
+        out vec4 fragColor;
+        void main() {
+          vec4 c = texture(uTex, vUv);
+          if (c.a < 0.02) discard;
+          // Soft border fade
+          float edge = smoothstep(0.0, 0.04, vUv.x) * smoothstep(1.0, 0.96, vUv.x) *
+                       smoothstep(0.0, 0.04, vUv.y) * smoothstep(1.0, 0.96, vUv.y);
+          fragColor = vec4(c.rgb, c.a * edge);
+        }`
+      );
+    }
+
+    initTunnelGeometry() {
+      const gl = this.gl;
+      // Large floor plane at y = 0
+      const verts = new Float32Array([
+        -15, 0, -15,  15, 0, -15,  15, 0, 15,
+        -15, 0, -15,  15, 0, 15,  -15, 0, 15,
+      ]);
+      this.floorVao = gl.createVertexArray();
+      gl.bindVertexArray(this.floorVao);
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      // Subtle architectural wind-tunnel test chamber rails & overhead softbox frames
+      const cage = [];
+      const x0 = -4.4, x1 = 7.6, y0 = 0.01, y1 = 4.2, z0 = -3.0, z1 = 3.0;
+      const seg = (a, b) => cage.push(...a, ...b);
+      // Outer chamber frame
+      seg([x0, y0, z0], [x1, y0, z0]); seg([x0, y0, z1], [x1, y0, z1]);
+      seg([x0, y1, z0], [x1, y1, z0]); seg([x0, y1, z1], [x1, y1, z1]);
+      for (const x of [x0, -1.4, 1.6, 4.6, x1]) {
+        seg([x, y0, z0], [x, y1, z0]);
+        seg([x, y0, z1], [x, y1, z1]);
+        seg([x, y1, z0], [x, y1, z1]);
+      }
+      // Overhead softbox light strip outlines
+      for (const zs of [-1.2, 1.2]) {
+        seg([-3.2, y1 - 0.04, zs - 0.28], [4.2, y1 - 0.04, zs - 0.28]);
+        seg([-3.2, y1 - 0.04, zs + 0.28], [4.2, y1 - 0.04, zs + 0.28]);
+        seg([-3.2, y1 - 0.04, zs - 0.28], [-3.2, y1 - 0.04, zs + 0.28]);
+        seg([4.2, y1 - 0.04, zs - 0.28], [4.2, y1 - 0.04, zs + 0.28]);
+      }
+      this.cageCount = cage.length / 3;
+      this.cageVao = gl.createVertexArray();
+      gl.bindVertexArray(this.cageVao);
+      const cbuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, cbuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cage), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.bindVertexArray(null);
+    }
+
+    initSliceQuad() {
+      const gl = this.gl;
+      this.sliceVao = gl.createVertexArray();
+      gl.bindVertexArray(this.sliceVao);
+      this.slicePosBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.slicePosBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, 6 * 3 * 4, gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      const uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1]);
+      const uvBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+
+      this.sliceTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this.sliceTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.bindVertexArray(null);
+    }
+
+    updateSlice(solver, mode, normPos, colorMode) {
+      if (mode === 'off') return;
+      const gl = this.gl;
+      const { xMin, xMax, yMin, yMax, zMin, zMax } = solver;
+      let w = 64, h = 28;
+      let quad;
+      if (mode === 'z') {
+        const z = normPos * 2.4;
+        quad = [xMin, yMin + 0.02, z, xMax, yMin + 0.02, z, xMax, yMax, z, xMin, yMin + 0.02, z, xMax, yMax, z, xMin, yMax, z];
+        w = 80; h = 32;
+      } else if (mode === 'y') {
+        const y = lerp(0.12, 2.5, (normPos + 1) * 0.5);
+        quad = [xMin, y, zMin, xMax, y, zMin, xMax, y, zMax, xMin, y, zMin, xMax, y, zMax, xMin, y, zMax];
+        w = 80; h = 40;
+      } else {
+        const x = lerp(-2.6, 5.8, (normPos + 1) * 0.5);
+        quad = [x, yMin + 0.02, zMin, x, yMin + 0.02, zMax, x, yMax, zMax, x, yMin + 0.02, zMin, x, yMax, zMax, x, yMax, zMin];
+        w = 44; h = 32;
+      }
+
+      const pixels = new Uint8Array(w * h * 4);
+      for (let j = 0; j < h; j++) {
+        const fv = j / (h - 1);
+        for (let i = 0; i < w; i++) {
+          const fu = i / (w - 1);
+          let x, y, z;
+          if (mode === 'z') { x = lerp(xMin, xMax, fu); y = lerp(yMin + 0.02, yMax, fv); z = normPos * 2.4; }
+          else if (mode === 'y') { x = lerp(xMin, xMax, fu); y = lerp(0.12, 2.5, (normPos + 1) * 0.5); z = lerp(zMin, zMax, fv); }
+          else { x = lerp(-2.6, 5.8, (normPos + 1) * 0.5); y = lerp(yMin + 0.02, yMax, fv); z = lerp(zMin, zMax, fu); }
+
+          const s = solver.sample(x, y, z);
+          const idx = (j * w + i) * 4;
+          if (s.solid) {
+            pixels[idx] = 20; pixels[idx + 1] = 24; pixels[idx + 2] = 30; pixels[idx + 3] = 0;
+            continue;
+          }
+          let t = 0.5;
+          if (colorMode === 0) t = clamp(s.speed / 1.50, 0, 1);
+          else if (colorMode === 1) t = clamp((s.cp + 1.2) / 2.2, 0, 1);
+          else if (colorMode === 2) t = clamp(s.turb / 1.15, 0, 1);
+          else t = clamp(s.speed / 1.50, 0, 1);
+
+          const [r, g, b] = aeroColorRGB(t);
+          // Subtle contour highlight
+          const iso = Math.abs(((t * 10) % 1) - 0.5) < 0.04 ? 1.15 : 1.0;
+          // Highlight disturbed flow (wake, stagnation, acceleration) while keeping freestream subtle
+          const perturb = clamp(Math.abs(s.speed - 1.0) * 2.4 + s.wake * 1.1 + s.turb * 0.65, 0, 1);
+          const alpha = Math.round(lerp(28, 168, Math.pow(perturb, 0.72)));
+          pixels[idx] = clamp(Math.round(r * 255 * iso), 0, 255);
+          pixels[idx + 1] = clamp(Math.round(g * 255 * iso), 0, 255);
+          pixels[idx + 2] = clamp(Math.round(b * 255 * iso), 0, 255);
+          pixels[idx + 3] = alpha;
+        }
+      }
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.slicePosBuf);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(quad));
+      gl.bindTexture(gl.TEXTURE_2D, this.sliceTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    }
+
+    uploadModel(mesh, vertexCp) {
+      const gl = this.gl;
+      if (this.modelVao) gl.deleteVertexArray(this.modelVao);
+      if (this.wireVao) gl.deleteVertexArray(this.wireVao);
+
+      this.modelVao = gl.createVertexArray();
+      gl.bindVertexArray(this.modelVao);
+
+      const bindBuf = (loc, data, size) => {
+        const b = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, b);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+        return b;
+      };
+      bindBuf(0, mesh.positions, 3);
+      bindBuf(1, mesh.normals, 3);
+      bindBuf(2, Float32Array.from(mesh.partIds), 1);
+      bindBuf(3, vertexCp, 1);
+
+      const ibo = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STATIC_DRAW);
+      this.modelIndexCount = mesh.indices.length;
+
+      // Wireframe line geometry (subsample if huge uploaded mesh > 45k tris)
+      const triCount = mesh.indices.length / 3;
+      const step = triCount > 45000 ? Math.ceil(triCount / 45000) : 1;
+      const wireVerts = [];
+      const p = mesh.positions, ind = mesh.indices;
+      for (let t = 0; t < triCount; t += step) {
+        const a = ind[t * 3] * 3, b = ind[t * 3 + 1] * 3, c = ind[t * 3 + 2] * 3;
+        wireVerts.push(p[a], p[a+1], p[a+2], p[b], p[b+1], p[b+2]);
+        wireVerts.push(p[b], p[b+1], p[b+2], p[c], p[c+1], p[c+2]);
+        wireVerts.push(p[c], p[c+1], p[c+2], p[a], p[a+1], p[a+2]);
+      }
+      this.wireVertexCount = wireVerts.length / 3;
+      this.wireVao = gl.createVertexArray();
+      gl.bindVertexArray(this.wireVao);
+      const wbuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, wbuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(wireVerts), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.bindVertexArray(null);
+
+      this.modelHasWheels = !!mesh.hasWheels;
+      if (mesh.wheelMeta) this.wheelMeta = mesh.wheelMeta;
+      this.modelBounds = mesh.bounds;
+    }
+
+    uploadStreamlines(geom) {
+      const gl = this.gl;
+      if (this.streamVao) gl.deleteVertexArray(this.streamVao);
+      this.streamVao = gl.createVertexArray();
+      gl.bindVertexArray(this.streamVao);
+
+      const bindBuf = (loc, data, size) => {
+        const b = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, b);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+      };
+      bindBuf(0, geom.positions, 3);
+      bindBuf(1, geom.tangents, 3);
+      bindBuf(2, geom.sides, 1);
+      bindBuf(3, geom.meta, 4);
+
+      const ibo = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geom.indices, gl.STATIC_DRAW);
+      this.streamIndexCount = geom.indices.length;
+      gl.bindVertexArray(null);
+    }
+
+    initParticleSystem(count) {
+      this.particleCount = count;
+      this.particles = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        this.particles[i * 3] = lerp(-4.3, 7.4, Math.random());
+        this.particles[i * 3 + 1] = lerp(0.06, 2.7, Math.pow(Math.random(), 1.15));
+        this.particles[i * 3 + 2] = lerp(-2.2, 2.2, Math.random());
+      }
+      this.particlePosBufData = new Float32Array(count * 2 * 3);
+      this.particleDataBufData = new Float32Array(count * 2 * 4);
+
+      const gl = this.gl;
+      if (this.particleVao) gl.deleteVertexArray(this.particleVao);
+      this.particleVao = gl.createVertexArray();
+      gl.bindVertexArray(this.particleVao);
+      this.particlePosBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.particlePosBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, this.particlePosBufData.byteLength, gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      this.particleDataBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.particleDataBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, this.particleDataBufData.byteLength, gl.DYNAMIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+      gl.bindVertexArray(null);
+    }
+
+    stepParticles(solver, dt, speedScale) {
+      const n = this.particleCount;
+      const p = this.particles;
+      const posOut = this.particlePosBufData;
+      const datOut = this.particleDataBufData;
+      const streakDt = 0.085;
+
+      for (let i = 0; i < n; i++) {
+        const j = i * 3;
+        let x = p[j], y = p[j + 1], z = p[j + 2];
+        const s = solver.sample(x, y, z);
+        const jitter = s.turb * 0.22;
+        const vx = Math.max(0.08, s.vx) + (Math.random() - 0.5) * jitter;
+        const vy = s.vy + (Math.random() - 0.5) * jitter;
+        const vz = s.vz + (Math.random() - 0.5) * jitter;
+
+        const nx = x + vx * dt * speedScale;
+        const ny = y + vy * dt * speedScale;
+        const nz = z + vz * dt * speedScale;
+
+        if (nx > 7.45 || ny < 0.03 || ny > 4.05 || Math.abs(nz) > 2.9 || s.solid) {
+          p[j] = -4.35 + Math.random() * 0.4;
+          p[j + 1] = 0.06 + Math.pow(Math.random(), 1.15) * 2.55;
+          p[j + 2] = (Math.random() * 2 - 1) * 2.15;
+          // Degenerate streak on respawn
+          const k6 = i * 6, k8 = i * 8;
+          posOut[k6] = posOut[k6 + 3] = p[j];
+          posOut[k6 + 1] = posOut[k6 + 4] = p[j + 1];
+          posOut[k6 + 2] = posOut[k6 + 5] = p[j + 2];
+          datOut[k8 + 3] = 0; datOut[k8 + 7] = 0;
+        } else {
+          p[j] = nx; p[j + 1] = ny; p[j + 2] = nz;
+          const k6 = i * 6, k8 = i * 8;
+          // Tail
+          posOut[k6] = nx - vx * streakDt;
+          posOut[k6 + 1] = Math.max(0.02, ny - vy * streakDt);
+          posOut[k6 + 2] = nz - vz * streakDt;
+          // Head
+          posOut[k6 + 3] = nx;
+          posOut[k6 + 4] = ny;
+          posOut[k6 + 5] = nz;
+
+          datOut[k8] = s.speed; datOut[k8 + 1] = s.cp; datOut[k8 + 2] = s.turb; datOut[k8 + 3] = 0.0;
+          datOut[k8 + 4] = s.speed; datOut[k8 + 5] = s.cp; datOut[k8 + 6] = s.turb; datOut[k8 + 7] = 1.0;
+        }
+      }
+
+      const gl = this.gl;
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.particlePosBuf);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, posOut);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.particleDataBuf);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, datOut);
+    }
+
+    render(state, camEye, camTarget, simTime, beltOffset, wheelSpin) {
+      const gl = this.gl;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const cw = Math.max(1, Math.floor(this.canvas.clientWidth * dpr));
+      const ch = Math.max(1, Math.floor(this.canvas.clientHeight * dpr));
+      if (this.canvas.width !== cw || this.canvas.height !== ch) {
+        this.canvas.width = cw;
+        this.canvas.height = ch;
+      }
+      gl.viewport(0, 0, cw, ch);
+
+      const lt = this.isLightTheme ? 1.0 : 0.0;
+      if (this.isLightTheme) gl.clearColor(0.92, 0.94, 0.965, 1.0);
+      else gl.clearColor(0.055, 0.07, 0.095, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      const proj = Mat4.perspective((42 * Math.PI) / 180, cw / ch, 0.1, 80.0);
+      const view = Mat4.lookAt(camEye, camTarget, [0, 1, 0]);
+      const viewProj = Mat4.multiply(proj, view);
+
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthMask(true);
+      gl.disable(gl.BLEND);
+
+      // 1. Floor + Rolling Road
+      gl.useProgram(this.tunnelProg);
+      gl.uniformMatrix4fv(gl.getUniformLocation(this.tunnelProg, 'uViewProj'), false, viewProj);
+      gl.uniform1f(gl.getUniformLocation(this.tunnelProg, 'uBeltOffset'), beltOffset);
+      gl.uniform1f(gl.getUniformLocation(this.tunnelProg, 'uYawRad'), (state.yawDeg * Math.PI) / 180);
+      gl.uniform1f(gl.getUniformLocation(this.tunnelProg, 'uLightTheme'), lt);
+      gl.uniform4f(gl.getUniformLocation(this.tunnelProg, 'uShadowBox'),
+        this.modelBounds.minX, this.modelBounds.maxX, this.modelBounds.minZ, this.modelBounds.maxZ);
+      gl.bindVertexArray(this.floorVao);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      // 2. Wind Tunnel Architectural Frame Lines
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.useProgram(this.wireProg);
+      gl.uniformMatrix4fv(gl.getUniformLocation(this.wireProg, 'uViewProj'), false, viewProj);
+      gl.uniform4f(gl.getUniformLocation(this.wireProg, 'uColor'),
+        this.isLightTheme ? 0.35 : 0.45, this.isLightTheme ? 0.42 : 0.58, this.isLightTheme ? 0.52 : 0.72, 0.20);
+      gl.bindVertexArray(this.cageVao);
+      gl.drawArrays(gl.LINES, 0, this.cageCount);
+
+      // 3. 3D Vehicle / Uploaded Model
+      if (this.modelVao && this.modelIndexCount > 0) {
+        const surfaceMode = state.surfaceMode === 'studio' ? 0 : state.surfaceMode === 'pressure' ? 1 : 2;
+        gl.useProgram(this.modelProg);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.modelProg, 'uViewProj'), false, viewProj);
+        gl.uniform3fv(gl.getUniformLocation(this.modelProg, 'uCamPos'), camEye);
+        gl.uniform1i(gl.getUniformLocation(this.modelProg, 'uSurfaceMode'), surfaceMode);
+        gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uLightTheme'), lt);
+        gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uWheelSpin'), wheelSpin);
+        gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uHasWheels'), this.modelHasWheels ? 1.0 : 0.0);
+        gl.uniform2f(gl.getUniformLocation(this.modelProg, 'uFrontAxle'), this.wheelMeta.fx, this.wheelMeta.fy);
+        gl.uniform2f(gl.getUniformLocation(this.modelProg, 'uRearAxle'), this.wheelMeta.rx, this.wheelMeta.ry);
+
+        if (surfaceMode === 2) {
+          gl.enable(gl.BLEND);
+          gl.depthMask(false);
+        } else {
+          gl.disable(gl.BLEND);
+          gl.depthMask(true);
+        }
+        gl.bindVertexArray(this.modelVao);
+        gl.drawElements(gl.TRIANGLES, this.modelIndexCount, gl.UNSIGNED_INT, 0);
+
+        if (surfaceMode === 2 && this.wireVao) {
+          gl.useProgram(this.wireProg);
+          gl.uniformMatrix4fv(gl.getUniformLocation(this.wireProg, 'uViewProj'), false, viewProj);
+          gl.uniform4f(gl.getUniformLocation(this.wireProg, 'uColor'),
+            this.isLightTheme ? 0.08 : 0.32, this.isLightTheme ? 0.42 : 0.78, this.isLightTheme ? 0.78 : 1.0, 0.55);
+          gl.bindVertexArray(this.wireVao);
+          gl.drawArrays(gl.LINES, 0, this.wireVertexCount);
+          gl.depthMask(true);
+        }
+      }
+
+      // 4. Translucent Flow Visualizations (Cut Plane, Streamlines, Particles)
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+
+      // 4a. 2D Cut Plane Slice
+      if (state.sliceMode !== 'off') {
+        gl.useProgram(this.sliceProg);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.sliceProg, 'uViewProj'), false, viewProj);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.sliceTex);
+        gl.uniform1i(gl.getUniformLocation(this.sliceProg, 'uTex'), 0);
+        gl.bindVertexArray(this.sliceVao);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+
+      const colorIdx = state.colorMap === 'velocity' ? 0 : state.colorMap === 'pressure' ? 1 : state.colorMap === 'turbulence' ? 2 : 3;
+
+      // 4b. 3D Smoke Streamline Ribbons
+      if (state.showStreamlines && this.streamVao && this.streamIndexCount > 0) {
+        gl.useProgram(this.ribbonProg);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.ribbonProg, 'uViewProj'), false, viewProj);
+        gl.uniform3fv(gl.getUniformLocation(this.ribbonProg, 'uCamPos'), camEye);
+        gl.uniform1f(gl.getUniformLocation(this.ribbonProg, 'uWidth'), 0.028);
+        gl.uniform1f(gl.getUniformLocation(this.ribbonProg, 'uTime'), simTime);
+        gl.uniform1i(gl.getUniformLocation(this.ribbonProg, 'uColorMode'), colorIdx);
+        gl.uniform1f(gl.getUniformLocation(this.ribbonProg, 'uLightTheme'), lt);
+        gl.bindVertexArray(this.streamVao);
+        gl.drawElements(gl.TRIANGLES, this.streamIndexCount, gl.UNSIGNED_INT, 0);
+      }
+
+      // 4c. 3D Airflow Particle Streaks
+      if (state.showParticles && this.particleVao) {
+        gl.useProgram(this.particleProg);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.particleProg, 'uViewProj'), false, viewProj);
+        gl.uniform1i(gl.getUniformLocation(this.particleProg, 'uColorMode'), colorIdx);
+        gl.uniform1f(gl.getUniformLocation(this.particleProg, 'uLightTheme'), lt);
+        gl.bindVertexArray(this.particleVao);
+        gl.drawArrays(gl.LINES, 0, this.particleCount * 2);
+      }
+
+      gl.depthMask(true);
+      gl.bindVertexArray(null);
+    }
+  }
+
+  /* ============================================================================
+   * 9. APPLICATION STATE, CAMERA, UI BINDINGS & MAIN LOOP
+   * ========================================================================== */
+  const state = {
+    preset: 'sportscar',
+    isPreset: true,
+    windSpeedKmh: 120,
+    airDensity: 1.225,
+    yawDeg: 0,
+    pitchDeg: 0,
+    rideHeight: 0,
+    rollingRoad: true,
+    surfaceMode: 'studio',     // studio | pressure | wireframe
+    colorMap: 'velocity',      // velocity | pressure | turbulence | smoke
+    showStreamlines: true,
+    rakeMode: 'vertical',      // vertical | horizontal | grid
+    streamCount: 24,
+    rakeOffset: 0,
+    showParticles: true,
+    particleCount: 1800,
+    sliceMode: 'off',          // off | z | y | x
+    slicePos: 0,
+    frontAxis: '-x',
+    upAxis: 'y',
+    scale: 1.0,
+    playing: true,
+  };
+
+  const presetCache = {};
+  function getPresetMesh(key) {
+    if (!presetCache[key]) {
+      if (key === 'sportscar') presetCache[key] = createSportsCarMesh();
+      else if (key === 'suv') presetCache[key] = createSuvMesh();
+      else if (key === 'formula') presetCache[key] = createFormulaMesh();
+      else if (key === 'airfoil') presetCache[key] = createAirfoilMesh();
+      else presetCache[key] = createSphereMesh();
+    }
+    return presetCache[key];
+  }
+
+  let rawActiveMesh = getPresetMesh('sportscar');
+  let activeTransformedMesh = null;
+
+  const canvas = document.getElementById('gl-canvas');
+  const solver = new WindTunnelSolver();
+  const renderer = new WindTunnelRenderer(canvas);
+
+  // Orbit Camera State
+  const cam = {
+    yaw: -2.42,
+    pitch: 0.30,
+    dist: 7.4,
+    target: [0.35, 0.72, 0.0],
+    tYaw: -2.42,
+    tPitch: 0.30,
+    tDist: 7.4,
+    tTarget: [0.35, 0.72, 0.0],
+  };
+
+  function getCamEye() {
+    const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    return [
+      cam.target[0] + cam.dist * cp * Math.cos(cam.yaw),
+      Math.max(0.18, cam.target[1] + cam.dist * sp),
+      cam.target[2] + cam.dist * cp * Math.sin(cam.yaw),
+    ];
+  }
+
+  function setCameraPreset(name) {
+    if (name === 'iso')   { cam.tYaw = -2.42; cam.tPitch = 0.30; cam.tDist = 7.4; cam.tTarget = [0.35, 0.72, 0]; }
+    if (name === 'side')  { cam.tYaw = 1.57;  cam.tPitch = 0.05; cam.tDist = 7.8; cam.tTarget = [0.65, 0.75, 0]; }
+    if (name === 'front') { cam.tYaw = Math.PI; cam.tPitch = 0.14; cam.tDist = 6.2; cam.tTarget = [0.0, 0.75, 0]; }
+    if (name === 'top')   { cam.tYaw = 1.57;  cam.tPitch = 1.44; cam.tDist = 8.8; cam.tTarget = [0.6, 0.4, 0]; }
+    if (name === 'rear')  { cam.tYaw = 0.42;  cam.tPitch = 0.28; cam.tDist = 7.6; cam.tTarget = [1.1, 0.78, 0]; }
+  }
+
+  // Mouse & Touch Orbit/Pan/Zoom
+  let dragMode = 0, lastX = 0, lastY = 0;
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.addEventListener('pointerdown', e => {
+    canvas.setPointerCapture(e.pointerId);
+    dragMode = (e.button === 2 || e.shiftKey) ? 2 : 1;
+    lastX = e.clientX; lastY = e.clientY;
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!dragMode) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    if (dragMode === 1) {
+      cam.tYaw += dx * 0.0065;
+      cam.tPitch = clamp(cam.tPitch + dy * 0.0065, 0.03, 1.48);
+    } else if (dragMode === 2) {
+      const rightX = -Math.sin(cam.yaw), rightZ = Math.cos(cam.yaw);
+      const panScale = cam.dist * 0.0014;
+      cam.tTarget[0] -= rightX * dx * panScale;
+      cam.tTarget[2] -= rightZ * dx * panScale;
+      cam.tTarget[1] = clamp(cam.tTarget[1] + dy * panScale, 0.1, 3.2);
+    }
+  });
+  canvas.addEventListener('pointerup', () => { dragMode = 0; });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    cam.tDist = clamp(cam.tDist * Math.exp(e.deltaY * 0.001), 2.8, 18.0);
+  }, { passive: false });
+
+  // Toast Notification
+  let toastTimer = null;
+  function showToast(msg, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.borderColor = isError ? 'var(--error, #ef4444)' : 'var(--primary)';
+    el.style.opacity = '1';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.style.opacity = '0'; }, 3200);
+  }
+
+  // Theme Detection & Live Sync
+  function syncTheme() {
+    const isLight = document.documentElement.classList.contains('light');
+    renderer.isLightTheme = isLight;
+    drawCpSparkline();
+  }
+  window.addEventListener('themechange', syncTheme);
+
+  // Centerline Cp Sparkline Canvas
+  function drawCpSparkline() {
+    const cvs = document.getElementById('cp-sparkline');
+    if (!cvs) return;
+    const ctx = cvs.getContext('2d');
+    const W = cvs.width, H = cvs.height;
+    ctx.clearRect(0, 0, W, H);
+    const prof = solver.metrics.cpProfile;
+    const style = getComputedStyle(document.documentElement);
+    const muted = style.getPropertyValue('--muted-foreground').trim() || '#8892a4';
+    const primary = style.getPropertyValue('--primary').trim() || '#38bdf8';
+
+    // Zero Cp baseline
+    const yZero = H * (1 - (0 - (-1.2)) / 2.2);
+    ctx.strokeStyle = muted;
+    ctx.globalAlpha = 0.35;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(0, yZero);
+    ctx.lineTo(W, yZero);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1.0;
+
+    // Cp curve
+    ctx.beginPath();
+    for (let i = 0; i < prof.length; i++) {
+      const x = (i / (prof.length - 1)) * (W - 2) + 1;
+      const y = clamp(H * (1 - (prof[i] + 1.2) / 2.2), 2, H - 2);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = primary;
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+  }
+
+  function updateLegendAndTelemetry() {
+    const U = state.windSpeedKmh / 3.6;
+    const rho = state.airDensity;
+    const q = 0.5 * rho * U * U;
+    const { cd, cl, cy, frontalArea, refLength, solveMs } = solver.metrics;
+
+    const fd = cd * q * frontalArea;
+    const fl = cl * q * frontalArea; // negative cl = downforce
+    const fy = cy * q * frontalArea;
+    const nu = 1.51e-5; // kinematic viscosity of air
+    const re = (U * refLength) / nu;
+    const reExp = Math.floor(Math.log10(Math.max(1, re)));
+    const reMant = (re / Math.pow(10, reExp)).toFixed(2);
+
+    document.getElementById('hud-cd').textContent = cd.toFixed(3);
+    document.getElementById('hud-fd').textContent = `${Math.round(fd).toLocaleString()} N`;
+    const isDownforce = fl < 0;
+    document.getElementById('hud-cl-label').textContent = isDownforce ? '다운포스 (CL)' : '양력 (CL)';
+    document.getElementById('hud-cl').textContent = cl.toFixed(3);
+    document.getElementById('hud-fl').textContent = `${Math.round(Math.abs(fl)).toLocaleString()} N`;
+    document.getElementById('hud-area').textContent = `${frontalArea.toFixed(2)} m²`;
+    document.getElementById('hud-fy').textContent = `${Math.round(fy).toLocaleString()} N`;
+    document.getElementById('hud-q').textContent = `${Math.round(q).toLocaleString()} Pa`;
+    document.getElementById('hud-re').textContent = `${reMant}×10^${reExp}`;
+
+    document.getElementById('val-speed').textContent = `${state.windSpeedKmh} km/h · ${U.toFixed(1)} m/s`;
+    document.getElementById('stat-solve-ms').textContent = `${solveMs.toFixed(1)} ms`;
+
+    // Legend
+    const lTitle = document.getElementById('legend-title');
+    const lUnit = document.getElementById('legend-unit');
+    const lMin = document.getElementById('legend-min');
+    const lMid = document.getElementById('legend-mid');
+    const lMax = document.getElementById('legend-max');
+    const lBar = document.getElementById('legend-bar');
+
+    if (state.surfaceMode === 'pressure' || state.colorMap === 'pressure') {
+      lTitle.textContent = '압력 계수 (Cp)';
+      lUnit.textContent = '흡입 ↔ 정체';
+      lMin.textContent = '-1.2';
+      lMid.textContent = '-0.1';
+      lMax.textContent = '+1.0';
+      lBar.style.background = 'linear-gradient(90deg, #143894, #0f9ed9, #29cc85, #f5c733, #e63329)';
+    } else if (state.colorMap === 'turbulence') {
+      lTitle.textContent = '난류 / 와류 강도';
+      lUnit.textContent = '층류 ↔ 후류';
+      lMin.textContent = '0%';
+      lMid.textContent = '50%';
+      lMax.textContent = '100%';
+      lBar.style.background = 'linear-gradient(90deg, #143894, #0f9ed9, #29cc85, #f5c733, #e63329)';
+    } else if (state.colorMap === 'smoke') {
+      lTitle.textContent = '스모크 농도';
+      lUnit.textContent = `U∞ ${U.toFixed(1)} m/s`;
+      lMin.textContent = '희박';
+      lMid.textContent = '중간';
+      lMax.textContent = '고농도';
+      lBar.style.background = 'linear-gradient(90deg, rgba(160,180,210,0.2), rgba(220,235,255,0.95))';
+    } else {
+      lTitle.textContent = '국소 유속 (m/s)';
+      lUnit.textContent = `U∞ ${U.toFixed(1)}`;
+      lMin.textContent = '0';
+      lMid.textContent = (U * 0.75).toFixed(1);
+      lMax.textContent = (U * 1.50).toFixed(1);
+      lBar.style.background = 'linear-gradient(90deg, #143894, #0f9ed9, #29cc85, #f5c733, #e63329)';
+    }
+    drawCpSparkline();
+  }
+
+  function rebuildSlice() {
+    const colorIdx = state.colorMap === 'velocity' ? 0 : state.colorMap === 'pressure' ? 1 : state.colorMap === 'turbulence' ? 2 : 3;
+    renderer.updateSlice(solver, state.sliceMode, state.slicePos, colorIdx);
+  }
+
+  function rebuildStreamlines() {
+    if (!activeTransformedMesh) return;
+    const geom = solver.buildStreamlineGeometry(state.rakeMode, state.streamCount, state.rakeOffset, activeTransformedMesh.bounds);
+    renderer.uploadStreamlines(geom);
+  }
+
+  function rebuildModelAndSolve() {
+    activeTransformedMesh = transformModelForTunnel(rawActiveMesh, {
+      frontAxis: state.frontAxis,
+      upAxis: state.upAxis,
+      scale: state.scale,
+      yawDeg: state.yawDeg,
+      pitchDeg: state.pitchDeg,
+      rideHeight: state.rideHeight,
+      isPreset: state.isPreset,
+    });
+    const vertexCp = solver.solve(activeTransformedMesh);
+    renderer.uploadModel(activeTransformedMesh, vertexCp);
+    rebuildStreamlines();
+    rebuildSlice();
+
+    // Update mesh metadata UI
+    const b = activeTransformedMesh.bounds;
+    document.getElementById('active-model-label').textContent = state.isPreset ? `${activeTransformedMesh.name} (기본)` : activeTransformedMesh.name;
+    document.getElementById('stat-name').textContent = activeTransformedMesh.name;
+    document.getElementById('stat-tris').textContent = (activeTransformedMesh.indices.length / 3).toLocaleString();
+    document.getElementById('stat-dims').textContent = `${b.lenX.toFixed(2)}×${b.lenZ.toFixed(2)}×${b.lenY.toFixed(2)} m`;
+
+    updateLegendAndTelemetry();
+  }
+
+  // Handle Uploaded 3D Model Files (.glb, .gltf, .obj, .stl)
+  async function handleModelFile(file) {
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    try {
+      let parsed;
+      if (ext === 'stl') {
+        parsed = parseSTL(await file.arrayBuffer(), file.name);
+      } else if (ext === 'obj') {
+        parsed = parseOBJ(await file.text(), file.name);
+      } else if (ext === 'glb') {
+        parsed = parseGLB(await file.arrayBuffer(), file.name);
+      } else if (ext === 'gltf') {
+        parsed = parseGLTF(await file.text(), file.name);
+      } else {
+        throw new Error(`지원하지 않는 형식입니다 (.${ext}). .glb, .gltf, .obj, .stl 파일을 업로드해 주세요.`);
+      }
+      rawActiveMesh = parsed;
+      state.isPreset = false;
+      state.preset = 'custom';
+      state.frontAxis = '-x';
+      state.upAxis = 'y';
+      state.scale = 1.0;
+      document.getElementById('slider-scale').value = '1.00';
+      document.getElementById('val-scale').textContent = '1.00x';
+      syncButtonGroup('.preset-btn', null);
+      syncButtonGroup('.front-btn', '-x', 'front');
+      syncButtonGroup('.up-btn', 'y', 'up');
+      rebuildModelAndSolve();
+      setCameraPreset('iso');
+      showToast(`"${file.name}" 로드 완료 (${(parsed.indices.length / 3).toLocaleString()} 삼각형)`);
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || '모델 파일을 읽는 중 오류가 발생했습니다.', true);
+    }
+  }
+
+  function syncButtonGroup(selector, activeVal, dataKey = 'preset') {
+    document.querySelectorAll(selector).forEach(btn => {
+      const match = activeVal !== null && btn.dataset[dataKey] === activeVal;
+      btn.classList.toggle('pill-active', match);
+      btn.classList.toggle('text-[var(--muted-foreground)]', !match);
+    });
+  }
+
+  // Wire UI Events
+  document.getElementById('model-file-input').addEventListener('change', e => {
+    if (e.target.files && e.target.files[0]) handleModelFile(e.target.files[0]);
+    e.target.value = '';
+  });
+
+  // Drag & Drop anywhere on window
+  let dragDepth = 0;
+  const dropOverlay = document.getElementById('drop-overlay');
+  window.addEventListener('dragenter', e => {
+    e.preventDefault();
+    dragDepth++;
+    dropOverlay.classList.remove('hidden');
+  });
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('dragleave', e => {
+    e.preventDefault();
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) dropOverlay.classList.add('hidden');
+  });
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    dragDepth = 0;
+    dropOverlay.classList.add('hidden');
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleModelFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  // Preset Selection
+  function selectPreset(key) {
+    state.preset = key;
+    state.isPreset = true;
+    state.frontAxis = '-x';
+    state.upAxis = 'y';
+    state.scale = 1.0;
+    document.getElementById('slider-scale').value = '1.00';
+    document.getElementById('val-scale').textContent = '1.00x';
+    rawActiveMesh = getPresetMesh(key);
+    syncButtonGroup('.preset-btn', key, 'preset');
+    syncButtonGroup('.front-btn', '-x', 'front');
+    syncButtonGroup('.up-btn', 'y', 'up');
+    rebuildModelAndSolve();
+    showToast(`${rawActiveMesh.name} 모델 적용 완료`);
+  }
+  document.querySelectorAll('.preset-btn, .preset-btn-panel').forEach(btn => {
+    btn.addEventListener('click', () => selectPreset(btn.dataset.preset));
+  });
+
+  // Camera Preset Buttons
+  document.querySelectorAll('.cam-btn').forEach(btn => {
+    btn.addEventListener('click', () => setCameraPreset(btn.dataset.cam));
+  });
+
+  // Play / Pause
+  document.getElementById('btn-play-pause').addEventListener('click', () => {
+    state.playing = !state.playing;
+    document.getElementById('play-icon').textContent = state.playing ? '❚❚' : '▶';
+    document.getElementById('play-label').textContent = state.playing ? '실행 중' : '일시정지';
+  });
+
+  // Theme Toggle (Standalone)
+  const themeBtn = document.getElementById('btn-toggle-theme');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const isLight = document.documentElement.classList.toggle('light');
+      themeBtn.textContent = isLight ? '다크' : '라이트';
+      syncTheme();
+    });
+  }
+
+  // Panel Toggle
+  let panelOpen = true;
+  document.getElementById('btn-toggle-panel').addEventListener('click', () => {
+    panelOpen = !panelOpen;
+    document.getElementById('control-panel').style.transform = panelOpen ? 'translateX(0)' : 'translateX(330px)';
+  });
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        const active = b.dataset.tab === tab;
+        b.classList.toggle('tab-active', active);
+        b.classList.toggle('text-[var(--muted-foreground)]', !active);
+      });
+      ['flow', 'visual', 'model'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
+      });
+    });
+  });
+
+  // Flow Sliders
+  document.getElementById('slider-speed').addEventListener('input', e => {
+    state.windSpeedKmh = parseFloat(e.target.value);
+    updateLegendAndTelemetry();
+  });
+  document.querySelectorAll('.speed-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.windSpeedKmh = parseFloat(btn.dataset.speed);
+      document.getElementById('slider-speed').value = String(state.windSpeedKmh);
+      updateLegendAndTelemetry();
+    });
+  });
+
+  let solveDebounce = null;
+  function scheduleSolve() {
+    clearTimeout(solveDebounce);
+    solveDebounce = setTimeout(rebuildModelAndSolve, 28);
+  }
+
+  document.getElementById('slider-yaw').addEventListener('input', e => {
+    state.yawDeg = parseFloat(e.target.value);
+    document.getElementById('val-yaw').textContent = `${state.yawDeg.toFixed(1)}°`;
+    scheduleSolve();
+  });
+  document.getElementById('slider-pitch').addEventListener('input', e => {
+    state.pitchDeg = parseFloat(e.target.value);
+    document.getElementById('val-pitch').textContent = `${state.pitchDeg.toFixed(1)}°`;
+    scheduleSolve();
+  });
+  document.getElementById('slider-clearance').addEventListener('input', e => {
+    state.rideHeight = parseFloat(e.target.value);
+    document.getElementById('val-clearance').textContent = `${state.rideHeight.toFixed(2)} m`;
+    scheduleSolve();
+  });
+  document.getElementById('slider-density').addEventListener('input', e => {
+    state.airDensity = parseFloat(e.target.value);
+    document.getElementById('val-density').textContent = `${state.airDensity.toFixed(3)} kg/m³`;
+    updateLegendAndTelemetry();
+  });
+  document.getElementById('chk-rolling-road').addEventListener('change', e => {
+    state.rollingRoad = e.target.checked;
+  });
+  document.getElementById('btn-reset-flow').addEventListener('click', () => {
+    state.windSpeedKmh = 120; state.yawDeg = 0; state.pitchDeg = 0; state.rideHeight = 0; state.airDensity = 1.225; state.rollingRoad = true;
+    document.getElementById('slider-speed').value = '120';
+    document.getElementById('slider-yaw').value = '0'; document.getElementById('val-yaw').textContent = '0.0°';
+    document.getElementById('slider-pitch').value = '0'; document.getElementById('val-pitch').textContent = '0.0°';
+    document.getElementById('slider-clearance').value = '0'; document.getElementById('val-clearance').textContent = '0.00 m';
+    document.getElementById('slider-density').value = '1.225'; document.getElementById('val-density').textContent = '1.225 kg/m³';
+    document.getElementById('chk-rolling-road').checked = true;
+    rebuildModelAndSolve();
+  });
+
+  // Visual Controls
+  document.querySelectorAll('.surface-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.surfaceMode = btn.dataset.surface;
+      syncButtonGroup('.surface-btn', state.surfaceMode, 'surface');
+      updateLegendAndTelemetry();
+    });
+  });
+  document.querySelectorAll('.colormap-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.colorMap = btn.dataset.colormap;
+      syncButtonGroup('.colormap-btn', state.colorMap, 'colormap');
+      rebuildSlice();
+      updateLegendAndTelemetry();
+    });
+  });
+  document.getElementById('chk-streamlines').addEventListener('change', e => {
+    state.showStreamlines = e.target.checked;
+  });
+  document.querySelectorAll('.rake-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.rakeMode = btn.dataset.rake;
+      syncButtonGroup('.rake-btn', state.rakeMode, 'rake');
+      rebuildStreamlines();
+    });
+  });
+  document.getElementById('slider-stream-count').addEventListener('input', e => {
+    state.streamCount = parseInt(e.target.value, 10);
+    document.getElementById('val-stream-count').textContent = `${state.streamCount}개`;
+    rebuildStreamlines();
+  });
+  document.getElementById('slider-rake-offset').addEventListener('input', e => {
+    state.rakeOffset = parseFloat(e.target.value);
+    document.getElementById('val-rake-offset').textContent = `${state.rakeOffset.toFixed(2)} m`;
+    rebuildStreamlines();
+  });
+  document.getElementById('chk-particles').addEventListener('change', e => {
+    state.showParticles = e.target.checked;
+  });
+  document.getElementById('slider-particles').addEventListener('input', e => {
+    state.particleCount = parseInt(e.target.value, 10);
+    document.getElementById('val-particles').textContent = String(state.particleCount);
+    renderer.initParticleSystem(state.particleCount);
+  });
+  document.querySelectorAll('.slice-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.sliceMode = btn.dataset.slice;
+      syncButtonGroup('.slice-btn', state.sliceMode, 'slice');
+      rebuildSlice();
+    });
+  });
+  document.getElementById('slider-slice-pos').addEventListener('input', e => {
+    state.slicePos = parseFloat(e.target.value);
+    const val = state.sliceMode === 'y'
+      ? lerp(0.12, 2.5, (state.slicePos + 1) * 0.5)
+      : state.sliceMode === 'x'
+        ? lerp(-2.6, 5.8, (state.slicePos + 1) * 0.5)
+        : state.slicePos * 2.4;
+    document.getElementById('val-slice-pos').textContent = `${val.toFixed(2)} m`;
+    rebuildSlice();
+  });
+
+  // Model Alignment Controls
+  document.querySelectorAll('.front-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.frontAxis = btn.dataset.front;
+      syncButtonGroup('.front-btn', state.frontAxis, 'front');
+      rebuildModelAndSolve();
+    });
+  });
+  document.querySelectorAll('.up-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.upAxis = btn.dataset.up;
+      syncButtonGroup('.up-btn', state.upAxis, 'up');
+      rebuildModelAndSolve();
+    });
+  });
+  document.getElementById('slider-scale').addEventListener('input', e => {
+    state.scale = parseFloat(e.target.value);
+    document.getElementById('val-scale').textContent = `${state.scale.toFixed(2)}x`;
+    scheduleSolve();
+  });
+
+  // Export Current Model to .OBJ (helpful for testing upload/re-import!)
+  document.getElementById('btn-export-obj').addEventListener('click', () => {
+    if (!activeTransformedMesh) return;
+    const objStr = exportMeshToOBJ(activeTransformedMesh);
+    const blob = new Blob([objStr], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${state.preset || 'model'}_aerolab.obj`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('현재 모델을 .OBJ 파일로 내보냈습니다.');
+  });
+
+  // Expose API for diagnostics
+  window.__AERO_SIM__ = {
+    state,
+    solver,
+    selectPreset,
+    handleModelFile,
+    setCameraPreset,
+    rebuildModelAndSolve,
+    parseSTL,
+    parseOBJ,
+    parseGLB,
+  };
+
+  // Initialize & Main Animation Loop
+  syncTheme();
+  rebuildModelAndSolve();
+
+  let lastFrame = performance.now();
+  let simTime = 0;
+  let beltOffset = 0;
+  let wheelSpin = 0;
+
+  function animate(now) {
+    const dt = Math.min(0.05, (now - lastFrame) / 1000);
+    lastFrame = now;
+
+    // Smooth camera damping
+    const kCam = 1 - Math.exp(-dt * 11);
+    cam.yaw += (cam.tYaw - cam.yaw) * kCam;
+    cam.pitch += (cam.tPitch - cam.pitch) * kCam;
+    cam.dist += (cam.tDist - cam.dist) * kCam;
+    cam.target[0] += (cam.tTarget[0] - cam.target[0]) * kCam;
+    cam.target[1] += (cam.tTarget[1] - cam.target[1]) * kCam;
+    cam.target[2] += (cam.tTarget[2] - cam.target[2]) * kCam;
+
+    const U = state.windSpeedKmh / 3.6;
+    const visualFlowSpeed = 1.6 + (U / 33.3) * 3.8;
+
+    if (state.playing) {
+      simTime += dt * (0.45 + U / 42.0);
+      if (state.rollingRoad) {
+        beltOffset += dt * visualFlowSpeed * 0.85;
+        wheelSpin -= dt * visualFlowSpeed * 2.6;
+      }
+      if (state.showParticles) {
+        renderer.stepParticles(solver, dt, visualFlowSpeed);
+      }
+    }
+
+    renderer.render(state, getCamEye(), cam.target, simTime, beltOffset, wheelSpin);
+    requestAnimationFrame(animate);
+  }
+  requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

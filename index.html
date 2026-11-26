@@ -5,7 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AERO LAB 3D — 3D 풍동 실험 시뮬레이션</title>
   <meta name="description" content="WebGL2 기반 실시간 3D 풍동 실험 시뮬레이션. GT 스포츠카 기본 모델 및 사용자 3D 모델(.glb, .gltf, .obj, .stl) 업로드, 3D 스모크 유선, 표면 압력 히트맵(Cp), 항력/다운포스 실시간 해석을 지원합니다." />
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2338bdf8'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='sans-serif' font-weight='700' font-size='14' fill='%23082f49'%3E3D%3C/text%3E%3C/svg%3E" />
+  <meta name="theme-color" content="#040d1e" />
+  <meta property="og:title" content="AERO LAB 3D — 3D 풍동 실험 시뮬레이션" />
+  <meta property="og:description" content="WebGL2 기반 실시간 3D 풍동 실험 및 사용자 3D 모델(.glb/.obj/.stl) 공력 해석 시뮬레이션" />
+  <meta property="og:image" content="/screenshots/01_hero_gt_sportscar_red.png" />
+  <link rel="icon" href="./favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+  <link rel="manifest" href="./manifest.json" />
   <link rel="stylesheet" href="./styles.css" />
   <style>
     :root {
@@ -146,9 +153,7 @@
   <header class="fixed top-3 left-3 right-3 sm:right-auto z-20 flex flex-wrap items-center gap-2 pointer-events-none">
     <div class="pointer-events-auto glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl px-3.5 py-2 flex items-center gap-3 shadow-lg">
       <div class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center font-bold text-xs tracking-tight">
-          3D
-        </div>
+        <img src="./icons/icon-192.png" alt="AERO LAB 3D" class="w-7 h-7 rounded-lg border border-[var(--border)] shadow-sm" style="object-fit:cover;" />
         <div class="leading-tight">
           <h1 class="text-xs font-bold tracking-wider uppercase text-[var(--foreground)]">AERO LAB 3D</h1>
           <div id="active-model-label" class="text-[11px] text-[var(--muted-foreground)] max-w-[160px] truncate">GT 스포츠카 (기본)</div>

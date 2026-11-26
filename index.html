@@ -6,7 +6,7 @@
   <title>AERO LAB 3D — 3D 풍동 실험 시뮬레이션</title>
   <meta name="description" content="WebGL2 기반 실시간 3D 풍동 실험 시뮬레이션. GT 스포츠카 기본 모델 및 사용자 3D 모델(.glb, .gltf, .obj, .stl) 업로드, 3D 스모크 유선, 표면 압력 히트맵(Cp), 항력/다운포스 실시간 해석을 지원합니다." />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2338bdf8'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-family='sans-serif' font-weight='700' font-size='14' fill='%23082f49'%3E3D%3C/text%3E%3C/svg%3E" />
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="./styles.css" />
   <style>
     :root {
       --background: #0d1117;
@@ -125,6 +125,15 @@
     </div>
   </div>
 
+  <!-- WebGL2 Unavailable / Context Lost Banner -->
+  <div id="webgl-fallback" class="hidden fixed inset-0 z-50 bg-black/75 glass-panel flex items-center justify-center p-6">
+    <div class="max-w-md w-full rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-center shadow-2xl space-y-2">
+      <div id="webgl-fallback-title" class="text-base font-semibold text-[var(--foreground)]">WebGL2 그래픽 컨텍스트를 복구 중입니다</div>
+      <div id="webgl-fallback-desc" class="text-xs text-[var(--muted-foreground)] leading-relaxed">하드웨어 가속(WebGL2)이 활성화된 최신 브라우저에서 3D 풍동 시뮬레이션을 사용할 수 있습니다.</div>
+      <button onclick="location.reload()" class="mt-2 px-4 py-1.5 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-medium cursor-pointer">새로고침</button>
+    </div>
+  </div>
+
   <!-- Top-Left Brand + Model Bar -->
   <header class="fixed top-3 left-3 right-3 sm:right-auto z-20 flex flex-wrap items-center gap-2 pointer-events-none">
     <div class="pointer-events-auto glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl px-3.5 py-2 flex items-center gap-3 shadow-lg">
@@ -173,6 +182,10 @@
     <button id="btn-play-pause" class="glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl px-2.5 py-2 text-xs font-medium hover:border-[var(--primary)] transition shadow-lg flex items-center gap-1.5" title="유동 재생 / 일시정지">
       <span id="play-icon">❚❚</span>
       <span class="hidden sm:inline" id="play-label">실행 중</span>
+    </button>
+
+    <button id="btn-share-link" class="glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl px-2.5 py-2 text-xs font-medium hover:border-[var(--primary)] transition shadow-lg" title="현재 풍동 실험 조건 공유 링크 복사">
+      공유
     </button>
 
     <button id="btn-toggle-theme" class="glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl px-2.5 py-2 text-xs font-medium hover:border-[var(--primary)] transition shadow-lg" title="다크 / 라이트 테마 전환">
@@ -2232,23 +2245,34 @@
   class WindTunnelRenderer {
     constructor(canvas) {
       this.canvas = canvas;
-      const gl = canvas.getContext('webgl2', { antialias: true, alpha: false, preserveDrawingBuffer: true });
+      const gl = canvas.getContext('webgl2', { antialias: true, alpha: false, powerPreference: 'high-performance' });
       if (!gl) throw new Error('이 브라우저는 WebGL2를 지원하지 않습니다.');
       this.gl = gl;
+      this.contextLost = false;
       this.isLightTheme = false;
-      this.initShaders();
-      this.initTunnelGeometry();
-      this.initParticleSystem(1800);
-      this.initSliceQuad();
+      this.modelBufs = [];
+      this.wireBuf = null;
+      this.streamBufs = [];
+      this.particlePosBuf = null;
+      this.particleDataBuf = null;
       this.modelVao = null;
       this.wireVao = null;
       this.streamVao = null;
+      this.particleVao = null;
       this.modelIndexCount = 0;
       this.wireVertexCount = 0;
       this.streamIndexCount = 0;
       this.modelHasWheels = false;
       this.wheelMeta = { fx: -1.34, fy: 0.34, rx: 1.32, ry: 0.36 };
       this.modelBounds = { minX: -2.2, maxX: 2.2, minY: 0, maxY: 1.25, minZ: -1, maxZ: 1 };
+      this.initAllGPU();
+    }
+
+    initAllGPU() {
+      this.initShaders();
+      this.initTunnelGeometry();
+      this.initParticleSystem(this.particleCount || 1800);
+      this.initSliceQuad();
     }
 
     compileShader(type, src) {
@@ -2689,7 +2713,7 @@
     }
 
     updateSlice(solver, mode, normPos, colorMode) {
-      if (mode === 'off') return;
+      if (mode === 'off' || this.contextLost) return;
       const gl = this.gl;
       const { xMin, xMax, yMin, yMax, zMin, zMax } = solver;
       let w = 64, h = 28;
@@ -2750,9 +2774,13 @@
     }
 
     uploadModel(mesh, vertexCp) {
+      if (this.contextLost) return;
       const gl = this.gl;
       if (this.modelVao) gl.deleteVertexArray(this.modelVao);
       if (this.wireVao) gl.deleteVertexArray(this.wireVao);
+      for (const b of this.modelBufs) gl.deleteBuffer(b);
+      this.modelBufs = [];
+      if (this.wireBuf) { gl.deleteBuffer(this.wireBuf); this.wireBuf = null; }
 
       this.modelVao = gl.createVertexArray();
       gl.bindVertexArray(this.modelVao);
@@ -2763,6 +2791,7 @@
         gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
         gl.enableVertexAttribArray(loc);
         gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+        this.modelBufs.push(b);
         return b;
       };
       bindBuf(0, mesh.positions, 3);
@@ -2773,6 +2802,7 @@
       const ibo = gl.createBuffer();
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STATIC_DRAW);
+      this.modelBufs.push(ibo);
       this.modelIndexCount = mesh.indices.length;
 
       // Wireframe line geometry (subsample if huge uploaded mesh > 45k tris)
@@ -2794,6 +2824,7 @@
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(wireVerts), gl.STATIC_DRAW);
       gl.enableVertexAttribArray(0);
       gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      this.wireBuf = wbuf;
       gl.bindVertexArray(null);
 
       this.modelHasWheels = !!mesh.hasWheels;
@@ -2802,8 +2833,11 @@
     }
 
     uploadStreamlines(geom) {
+      if (this.contextLost) return;
       const gl = this.gl;
       if (this.streamVao) gl.deleteVertexArray(this.streamVao);
+      for (const b of this.streamBufs) gl.deleteBuffer(b);
+      this.streamBufs = [];
       this.streamVao = gl.createVertexArray();
       gl.bindVertexArray(this.streamVao);
 
@@ -2813,6 +2847,7 @@
         gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
         gl.enableVertexAttribArray(loc);
         gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
+        this.streamBufs.push(b);
       };
       bindBuf(0, geom.positions, 3);
       bindBuf(1, geom.tangents, 3);
@@ -2822,6 +2857,7 @@
       const ibo = gl.createBuffer();
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geom.indices, gl.STATIC_DRAW);
+      this.streamBufs.push(ibo);
       this.streamIndexCount = geom.indices.length;
       gl.bindVertexArray(null);
     }
@@ -2837,8 +2873,11 @@
       this.particlePosBufData = new Float32Array(count * 2 * 3);
       this.particleDataBufData = new Float32Array(count * 2 * 4);
 
+      if (this.contextLost) return;
       const gl = this.gl;
       if (this.particleVao) gl.deleteVertexArray(this.particleVao);
+      if (this.particlePosBuf) gl.deleteBuffer(this.particlePosBuf);
+      if (this.particleDataBuf) gl.deleteBuffer(this.particleDataBuf);
       this.particleVao = gl.createVertexArray();
       gl.bindVertexArray(this.particleVao);
       this.particlePosBuf = gl.createBuffer();
@@ -2856,6 +2895,7 @@
     }
 
     stepParticles(solver, dt, speedScale) {
+      if (this.contextLost) return;
       const n = this.particleCount;
       const p = this.particles;
       const posOut = this.particlePosBufData;
@@ -2910,8 +2950,9 @@
     }
 
     render(state, camEye, camTarget, simTime, beltOffset, wheelSpin) {
+      if (this.contextLost) return;
       const gl = this.gl;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, window.innerWidth < 768 ? 1.5 : 2);
       const cw = Math.max(1, Math.floor(this.canvas.clientWidth * dpr));
       const ch = Math.max(1, Math.floor(this.canvas.clientHeight * dpr));
       if (this.canvas.width !== cw || this.canvas.height !== ch) {
@@ -3079,7 +3120,41 @@
 
   const canvas = document.getElementById('gl-canvas');
   const solver = new WindTunnelSolver();
-  const renderer = new WindTunnelRenderer(canvas);
+  let renderer;
+  try {
+    renderer = new WindTunnelRenderer(canvas);
+  } catch (err) {
+    const fb = document.getElementById('webgl-fallback');
+    document.getElementById('webgl-fallback-title').textContent = 'WebGL2를 사용할 수 없는 브라우저입니다';
+    document.getElementById('webgl-fallback-desc').textContent = err.message || '최신 Chrome, Edge, Safari, Firefox에서 하드웨어 가속을 켜고 다시 접속해 주세요.';
+    fb.classList.remove('hidden');
+    throw err;
+  }
+
+  canvas.addEventListener('webglcontextlost', e => {
+    e.preventDefault();
+    renderer.contextLost = true;
+    document.getElementById('webgl-fallback-title').textContent = 'WebGL 그래픽 컨텍스트를 복구 중입니다';
+    document.getElementById('webgl-fallback-desc').textContent = '다중 탭 사용 또는 메모리 절약으로 잠시 중단되었습니다. 자동으로 복구됩니다.';
+    document.getElementById('webgl-fallback').classList.remove('hidden');
+  }, false);
+
+  canvas.addEventListener('webglcontextrestored', () => {
+    renderer.contextLost = false;
+    renderer.modelBufs = [];
+    renderer.wireBuf = null;
+    renderer.streamBufs = [];
+    renderer.particlePosBuf = null;
+    renderer.particleDataBuf = null;
+    renderer.modelVao = null;
+    renderer.wireVao = null;
+    renderer.streamVao = null;
+    renderer.particleVao = null;
+    renderer.initAllGPU();
+    rebuildModelAndSolve();
+    document.getElementById('webgl-fallback').classList.add('hidden');
+    showToast('3D 그래픽 컨텍스트가 복구되었습니다.');
+  }, false);
 
   // Orbit Camera State
   const cam = {
@@ -3303,6 +3378,11 @@
   // Handle Uploaded 3D Model Files (.glb, .gltf, .obj, .stl)
   async function handleModelFile(file) {
     if (!file) return;
+    const maxBytes = 50 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      showToast('파일 크기가 50MB를 초과합니다. 경량화된 3D 모델을 업로드해 주세요.', true);
+      return;
+    }
     const ext = file.name.split('.').pop().toLowerCase();
     try {
       let parsed;
@@ -3406,6 +3486,35 @@
     document.getElementById('play-label').textContent = state.playing ? '실행 중' : '일시정지';
   });
 
+  // Share Experiment Link (URL Query Params)
+  const shareBtn = document.getElementById('btn-share-link');
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async () => {
+      const params = new URLSearchParams();
+      if (state.isPreset) params.set('preset', state.preset);
+      params.set('speed', String(state.windSpeedKmh));
+      if (state.yawDeg !== 0) params.set('yaw', String(state.yawDeg));
+      if (state.pitchDeg !== 0) params.set('pitch', String(state.pitchDeg));
+      if (state.rideHeight !== 0) params.set('clearance', state.rideHeight.toFixed(2));
+      if (state.surfaceMode !== 'studio') params.set('surface', state.surfaceMode);
+      if (state.colorMap !== 'velocity') params.set('colormap', state.colorMap);
+      if (state.sliceMode !== 'off') params.set('slice', state.sliceMode);
+      if (state.rakeMode !== 'vertical') params.set('rake', state.rakeMode);
+      const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+      try {
+        window.history.replaceState(null, '', `?${params.toString()}`);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+          showToast('실험 조건 공유 링크가 클립보드에 복사되었습니다!');
+        } else {
+          showToast('주소창 URL이 현재 실험 조건으로 업데이트되었습니다.');
+        }
+      } catch {
+        showToast('주소창 URL이 현재 실험 조건으로 업데이트되었습니다.');
+      }
+    });
+  }
+
   // Theme Toggle (Standalone)
   const themeBtn = document.getElementById('btn-toggle-theme');
   if (themeBtn) {
@@ -3416,11 +3525,13 @@
     });
   }
 
-  // Panel Toggle
-  let panelOpen = true;
+  // Panel Toggle (auto-collapse on narrow mobile viewports)
+  let panelOpen = window.innerWidth >= 768;
+  const controlPanelEl = document.getElementById('control-panel');
+  if (!panelOpen) controlPanelEl.style.transform = 'translateX(330px)';
   document.getElementById('btn-toggle-panel').addEventListener('click', () => {
     panelOpen = !panelOpen;
-    document.getElementById('control-panel').style.transform = panelOpen ? 'translateX(0)' : 'translateX(330px)';
+    controlPanelEl.style.transform = panelOpen ? 'translateX(0)' : 'translateX(330px)';
   });
 
   // Tabs
@@ -3601,7 +3712,65 @@
     parseGLB,
   };
 
+  // Restore Shared Experiment State from URL Query Parameters
+  function applyStateFromURL() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const preset = params.get('preset');
+      if (preset && ['sportscar', 'suv', 'formula', 'airfoil', 'sphere'].includes(preset)) {
+        state.preset = preset;
+        state.isPreset = true;
+        rawActiveMesh = getPresetMesh(preset);
+        syncButtonGroup('.preset-btn', preset, 'preset');
+      }
+      const speed = parseFloat(params.get('speed'));
+      if (!isNaN(speed)) {
+        state.windSpeedKmh = clamp(speed, 10, 360);
+        document.getElementById('slider-speed').value = String(state.windSpeedKmh);
+      }
+      const yaw = parseFloat(params.get('yaw'));
+      if (!isNaN(yaw)) {
+        state.yawDeg = clamp(yaw, -35, 35);
+        document.getElementById('slider-yaw').value = String(state.yawDeg);
+        document.getElementById('val-yaw').textContent = `${state.yawDeg.toFixed(1)}°`;
+      }
+      const pitch = parseFloat(params.get('pitch'));
+      if (!isNaN(pitch)) {
+        state.pitchDeg = clamp(pitch, -12, 12);
+        document.getElementById('slider-pitch').value = String(state.pitchDeg);
+        document.getElementById('val-pitch').textContent = `${state.pitchDeg.toFixed(1)}°`;
+      }
+      const clearance = parseFloat(params.get('clearance'));
+      if (!isNaN(clearance)) {
+        state.rideHeight = clamp(clearance, 0, 0.6);
+        document.getElementById('slider-clearance').value = String(state.rideHeight);
+        document.getElementById('val-clearance').textContent = `${state.rideHeight.toFixed(2)} m`;
+      }
+      const surface = params.get('surface');
+      if (surface && ['studio', 'pressure', 'wireframe'].includes(surface)) {
+        state.surfaceMode = surface;
+        syncButtonGroup('.surface-btn', surface, 'surface');
+      }
+      const cm = params.get('colormap');
+      if (cm && ['velocity', 'pressure', 'turbulence', 'smoke'].includes(cm)) {
+        state.colorMap = cm;
+        syncButtonGroup('.colormap-btn', cm, 'colormap');
+      }
+      const slice = params.get('slice');
+      if (slice && ['off', 'z', 'y', 'x'].includes(slice)) {
+        state.sliceMode = slice;
+        syncButtonGroup('.slice-btn', slice, 'slice');
+      }
+      const rake = params.get('rake');
+      if (rake && ['vertical', 'horizontal', 'grid'].includes(rake)) {
+        state.rakeMode = rake;
+        syncButtonGroup('.rake-btn', rake, 'rake');
+      }
+    } catch { /* ignore malformed URL params */ }
+  }
+
   // Initialize & Main Animation Loop
+  applyStateFromURL();
   syncTheme();
   rebuildModelAndSolve();
 
@@ -3609,8 +3778,13 @@
   let simTime = 0;
   let beltOffset = 0;
   let wheelSpin = 0;
+  let rafId = null;
 
   function animate(now) {
+    if (document.hidden) {
+      rafId = null;
+      return;
+    }
     const dt = Math.min(0.05, (now - lastFrame) / 1000);
     lastFrame = now;
 
@@ -3626,7 +3800,7 @@
     const U = state.windSpeedKmh / 3.6;
     const visualFlowSpeed = 1.6 + (U / 33.3) * 3.8;
 
-    if (state.playing) {
+    if (state.playing && !renderer.contextLost) {
       simTime += dt * (0.45 + U / 42.0);
       if (state.rollingRoad) {
         beltOffset += dt * visualFlowSpeed * 0.85;
@@ -3638,9 +3812,17 @@
     }
 
     renderer.render(state, getCamEye(), cam.target, simTime, beltOffset, wheelSpin);
-    requestAnimationFrame(animate);
+    rafId = requestAnimationFrame(animate);
   }
-  requestAnimationFrame(animate);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && rafId === null) {
+      lastFrame = performance.now();
+      rafId = requestAnimationFrame(animate);
+    }
+  });
+
+  rafId = requestAnimationFrame(animate);
   </script>
 </body>
 </html>

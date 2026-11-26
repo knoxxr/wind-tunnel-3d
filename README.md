@@ -1,32 +1,21 @@
 # AERO LAB 3D — 3D 풍동 실험 시뮬레이션
 
-브라우저에서 별도 백엔드나 빌드 도구 없이 바로 실행되는 **WebGL2 기반 실시간 3D 풍동(Wind Tunnel) 시뮬레이션**입니다.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fknoxxr%2Fwind-tunnel-3d)
+별도 백엔드 서버 없이 브라우저의 WebGL2와 클라이언트 측 3D CFD 솔버로 동작하는 **고동시성 정적 3D 풍동 시뮬레이션**입니다.
 
 ## 주요 기능
 
-- **기본 자동차 & 비교 프리셋 모델**
-  - **GT 스포츠카 (기본)**: 패스트백 차체, 프론트 스플리터, 리어 디퓨저, 인버티드 에어포일 리어 윙, 4륜 스포크 휠(롤링 로드 연동 회전)
-  - **SUV**, **F1 레이서**, **NACA 2412 에어포일**, **표준 구체(Sphere)** 비교 프리셋
-- **사용자 3D 모델 업로드 및 실시간 교체**
-  - `.glb`, `.gltf`, `.obj`, `.stl` (Binary / ASCII 모두 지원) 파일 선택 또는 드래그 앤 드롭
-  - 자동 크기 정규화, 중심 정렬, 지면 안착, 전면 축(`-X/+X/-Z/+Z`) 및 상단 축(`Y-Up / Z-Up`) 원클릭 보정
-  - 테스트용 `.obj` 내보내기 기능 제공
-- **실시간 3D 복셀 CFD 유동 해석**
-  - 임의의 업로드 삼각형 메시를 3D 복셀 그리드로 래스터화하고 3D Laplace 포텐셜 유동(Red-Black SOR) + 점성 후류(Wake)·박리·후류 와류 모델 결합
-  - 실시간 항력 계수($C_d$), 항력($F_D$), 다운포스/양력($C_L, F_L$), 횡력($F_Y$), 전면 투영 면적($A$), 동압($q$), 레이놀즈 수($Re$), 중심선 $C_p$ 압력 분포 그래프 계산
-- **다양한 3D 풍동 시각화**
-  - 3D 볼류메트릭 스모크 유선(수직 콤브 / 수평 콤브 / 3D 매트릭스)
-  - 3D 기류 파티클 스트릭(난류 후류 반영)
-  - 모델 표면 압력 분포 히트맵($C_p$ 등압선) / 스튜디오 메탈릭 / 와이어프레임 모드
-  - 이동 가능한 2D 단면 유동 슬라이스(종단 $Z$, 수평 $Y$, 후류 $X$)
-  - 롤링 로드(이동 바닥), 요각 회전 턴테이블, 다크/라이트 스튜디오 테마 전환
+- **기본 자동차 & 비교 프리셋 모델**: GT 스포츠카(기본), SUV, F1 레이서, NACA 2412 에어포일, 표준 구체
+- **사용자 3D 모델 업로드**: `.glb`, `.gltf`, `.obj`, `.stl` (Binary/ASCII, 최대 50MB 안전 가드), 자동 정규화 및 축 방향 보정
+- **실시간 3D 복셀 CFD 해석**: 항력 계수($C_d$), 항력($F_D$), 다운포스/양력($C_L, F_L$), 횡력($F_Y$), 전면 투영 면적($A$), 동압($q$), 레이놀즈 수($Re$), 중심선 $C_p$ 분포 그래프
+- **3D 풍동 시각화**: 3D 스모크 유선, 기류 파티클, 모델 표면 압력($C_p$) 히트맵, 2D 단면 슬라이스, 롤링 로드 및 요각 턴테이블
+- **다중 동시 접속 최적화**:
+  - **100% 클라이언트 독립 실행**: 모든 3D 렌더링·모델 파싱·유동 해석이 각 접속자 브라우저에서 독립 수행되어 동시 접속자가 급증해도 서버 병목 없음
+  - **외부 CDN 의존성 제거**: 사전 컴파일된 정적 [styles.css](./styles.css)만 사용하여 외부 CDN 장애·학교/사내망 차단 영향 없음
+  - **Vercel Global Edge CDN 캐싱**: `vercel.json`에 정적 에셋 `immutable` 및 `stale-while-revalidate` 헤더 적용
+  - **안정성 및 다중 기기 대응**: GPU 버퍼 명시적 해제(VRAM 누수 방지), WebGL 컨텍스트 손실 자동 복구, 백그라운드 탭 절전(`visibilitychange`), 모바일 패널 자동 접힘
+  - **실험 조건 URL 공유(`공유` 버튼)**: 현재 풍속·요각·피치·프리셋·시각화 설정을 URL 링크로 복사해 여러 명이 동일한 실험 조건으로 동시 접속 가능
 
 ## Vercel 배포 방법
 
-1. 상단의 **Deploy with Vercel** 버튼을 클릭하거나 [Vercel Import 페이지](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fknoxxr%2Fwind-tunnel-3d)에서 저장소를 연결해 원클릭 배포합니다.
-2. 또는 로컬에서 CLI로 배포할 수 있습니다:
-   ```bash
-   npx vercel --prod
-   ```
+1. [Vercel Import 페이지](https://vercel.com/new/import?s=https%3A%2F%2Fgithub.com%2Fknoxxr%2Fwind-tunnel-3d)에서 `knoxxr/wind-tunnel-3d` 저장소를 선택하고 **Deploy**를 클릭합니다.
+2. 이후 `main` 브랜치에 푸시할 때마다 Vercel이 자동으로 재배포합니다.

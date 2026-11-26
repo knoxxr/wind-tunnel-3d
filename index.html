@@ -99,6 +99,14 @@
       color: var(--foreground) !important;
       font-weight: 600;
     }
+    @media (max-width: 639px) {
+      #top-right-controls {
+        top: 64px !important;
+      }
+      #control-panel {
+        top: 108px !important;
+      }
+    }
     @keyframes pulseBorder {
       0%, 100% { opacity: 0.7; }
       50% { opacity: 1; }
@@ -170,7 +178,7 @@
   </header>
 
   <!-- Top-Right Camera & Playback Controls -->
-  <div class="fixed top-3 right-3 z-20 flex items-center gap-1.5">
+  <div id="top-right-controls" class="fixed top-3 right-3 z-20 flex items-center gap-1.5">
     <div class="hidden lg:flex items-center gap-1 glass-panel bg-[var(--card)]/85 border border-[var(--border)] rounded-xl p-1 shadow-lg">
       <button data-cam="iso" class="cam-btn px-2.5 py-1 rounded-lg text-xs text-[var(--foreground)] hover:bg-[var(--background)]/70 transition" title="3/4 쿼터 뷰">3/4</button>
       <button data-cam="side" class="cam-btn px-2.5 py-1 rounded-lg text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--background)]/70 transition" title="측면 뷰">측면</button>
@@ -3425,15 +3433,17 @@
   }, false);
 
   // Orbit Camera State
+  const isPortrait = () => window.innerWidth < window.innerHeight;
+  const initDist = isPortrait() ? 10.6 : 7.4;
   const cam = {
     yaw: -2.42,
     pitch: 0.30,
-    dist: 7.4,
-    target: [0.35, 0.72, 0.0],
+    dist: initDist,
+    target: [0.25, 0.72, 0.0],
     tYaw: -2.42,
     tPitch: 0.30,
-    tDist: 7.4,
-    tTarget: [0.35, 0.72, 0.0],
+    tDist: initDist,
+    tTarget: [0.25, 0.72, 0.0],
   };
 
   function getCamEye() {
@@ -3446,11 +3456,12 @@
   }
 
   function setCameraPreset(name) {
-    if (name === 'iso')   { cam.tYaw = -2.42; cam.tPitch = 0.30; cam.tDist = 7.4; cam.tTarget = [0.35, 0.72, 0]; }
-    if (name === 'side')  { cam.tYaw = 1.57;  cam.tPitch = 0.05; cam.tDist = 7.8; cam.tTarget = [0.65, 0.75, 0]; }
-    if (name === 'front') { cam.tYaw = Math.PI; cam.tPitch = 0.14; cam.tDist = 6.2; cam.tTarget = [0.0, 0.75, 0]; }
-    if (name === 'top')   { cam.tYaw = 1.57;  cam.tPitch = 1.44; cam.tDist = 8.8; cam.tTarget = [0.6, 0.4, 0]; }
-    if (name === 'rear')  { cam.tYaw = 0.42;  cam.tPitch = 0.28; cam.tDist = 7.6; cam.tTarget = [1.1, 0.78, 0]; }
+    const s = isPortrait() ? 1.42 : 1.0;
+    if (name === 'iso')   { cam.tYaw = -2.42; cam.tPitch = 0.30; cam.tDist = 7.4 * s; cam.tTarget = [0.25, 0.72, 0]; }
+    if (name === 'side')  { cam.tYaw = 1.57;  cam.tPitch = 0.05; cam.tDist = 7.8 * s; cam.tTarget = [0.65, 0.75, 0]; }
+    if (name === 'front') { cam.tYaw = Math.PI; cam.tPitch = 0.14; cam.tDist = 6.2 * s; cam.tTarget = [0.0, 0.75, 0]; }
+    if (name === 'top')   { cam.tYaw = 1.57;  cam.tPitch = 1.44; cam.tDist = 8.8 * s; cam.tTarget = [0.6, 0.4, 0]; }
+    if (name === 'rear')  { cam.tYaw = 0.42;  cam.tPitch = 0.28; cam.tDist = 7.6 * s; cam.tTarget = [1.1, 0.78, 0]; }
   }
 
   // Mouse & Touch Orbit/Pan/Zoom

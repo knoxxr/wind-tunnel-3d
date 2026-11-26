@@ -92,7 +92,7 @@
     input[type="range"].aero-slider::-webkit-slider-thumb:hover {
       transform: scale(1.18);
     }
-    button.glass-panel, button.tab-btn, button.preset-btn, button.surface-btn, button.colormap-btn, button.rake-btn, button.slice-btn, button.front-btn, button.up-btn, button.paint-btn {
+    button.glass-panel, button.tab-btn, button.preset-btn, button.surface-btn, button.colormap-btn, button.rake-btn, button.slice-btn, button.front-btn, button.up-btn, button.paint-btn, button.unit-btn {
       transition: none !important;
     }
     button.tab-active {
@@ -167,6 +167,7 @@
         <button data-preset="sportscar" class="preset-btn pill-active px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs transition hover:border-[var(--primary)]">GT 스포츠카</button>
         <button data-preset="suv" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]">SUV</button>
         <button data-preset="formula" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]">F1 레이서</button>
+        <button data-preset="ahmed" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]" title="자동차 CFD 표준 검증 모델 (Ahmed 25°)">Ahmed 25°</button>
         <button data-preset="airfoil" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]">에어포일</button>
         <button data-preset="sphere" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]">구체</button>
       </div>
@@ -213,10 +214,11 @@
   <!-- Right Collapsible Control Rail -->
   <aside id="control-panel" class="fixed top-16 right-3 bottom-24 z-20 w-[296px] max-w-[calc(100vw-24px)] glass-panel bg-[var(--card)]/88 border border-[var(--border)] rounded-2xl shadow-xl flex flex-col overflow-hidden transition-transform duration-200">
     <!-- Tabs -->
-    <div class="grid grid-cols-3 gap-1 p-1.5 border-b border-[var(--border)] bg-[var(--background)]/40 text-xs font-medium">
-      <button data-tab="flow" class="tab-btn tab-active py-1.5 rounded-lg transition">풍동 조건</button>
-      <button data-tab="visual" class="tab-btn py-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition">시각화</button>
-      <button data-tab="model" class="tab-btn py-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition">모델/업로드</button>
+    <div class="grid grid-cols-4 gap-1 p-1.5 border-b border-[var(--border)] bg-[var(--background)]/40 text-xs font-medium">
+      <button data-tab="flow" class="tab-btn tab-active py-1.5 rounded-lg">풍동</button>
+      <button data-tab="visual" class="tab-btn py-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)]">시각화</button>
+      <button data-tab="model" class="tab-btn py-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)]">모델</button>
+      <button data-tab="analysis" class="tab-btn py-1.5 rounded-lg text-[var(--muted-foreground)] hover:text-[var(--foreground)]">분석</button>
     </div>
 
     <!-- Tab Contents -->
@@ -393,19 +395,20 @@
 
         <!-- Mobile/Compact Presets -->
         <div class="space-y-1.5">
-          <div class="font-medium text-[var(--foreground)]">기본 제공 모델</div>
+          <div class="font-medium text-[var(--foreground)]">기본 제공 / 벤치마크 모델</div>
           <div class="grid grid-cols-2 gap-1.5">
-            <button data-preset="sportscar" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)] transition">GT 스포츠카</button>
-            <button data-preset="suv" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)] transition">SUV</button>
-            <button data-preset="formula" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)] transition">F1 레이서</button>
-            <button data-preset="airfoil" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)] transition">NACA 에어포일</button>
-            <button data-preset="sphere" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)] transition col-span-2">표준 구체 (Reference Sphere)</button>
+            <button data-preset="sportscar" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">GT 스포츠카</button>
+            <button data-preset="suv" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">SUV</button>
+            <button data-preset="formula" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">F1 레이서</button>
+            <button data-preset="ahmed" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">Ahmed Body 25°</button>
+            <button data-preset="airfoil" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">NACA 에어포일</button>
+            <button data-preset="sphere" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">표준 구체</button>
           </div>
         </div>
 
         <!-- Uploaded/Active Model Alignment -->
         <div class="space-y-2.5 pt-2 border-t border-[var(--border)]">
-          <div class="font-medium text-[var(--foreground)]">모델 방향 및 크기 보정</div>
+          <div class="font-medium text-[var(--foreground)]">모델 방향 및 실치수 단위 보정</div>
           <div class="space-y-1">
             <div class="text-[11px] text-[var(--muted-foreground)]">전면(바람 방향) 축 정렬</div>
             <div class="grid grid-cols-4 gap-1">
@@ -423,6 +426,15 @@
             </div>
           </div>
           <div class="space-y-1">
+            <div class="text-[11px] text-[var(--muted-foreground)]">업로드 파일 치수 단위</div>
+            <div class="grid grid-cols-4 gap-1">
+              <button data-unit="auto" class="unit-btn pill-active py-1 rounded-md border border-[var(--border)] text-[11px]">자동</button>
+              <button data-unit="m" class="unit-btn py-1 rounded-md border border-[var(--border)] text-[11px] font-mono text-[var(--muted-foreground)]">m</button>
+              <button data-unit="cm" class="unit-btn py-1 rounded-md border border-[var(--border)] text-[11px] font-mono text-[var(--muted-foreground)]">cm</button>
+              <button data-unit="mm" class="unit-btn py-1 rounded-md border border-[var(--border)] text-[11px] font-mono text-[var(--muted-foreground)]">mm</button>
+            </div>
+          </div>
+          <div class="space-y-1">
             <div class="flex justify-between text-[11px] text-[var(--muted-foreground)]">
               <span>모델 배율 (Scale)</span>
               <span id="val-scale" class="font-mono tabular-nums text-[var(--foreground)]">1.00x</span>
@@ -431,18 +443,105 @@
           </div>
         </div>
 
-        <!-- Mesh Stats -->
+        <!-- Mesh Stats & Quality Diagnosis -->
         <div class="rounded-xl bg-[var(--background)]/60 border border-[var(--border)] p-2.5 space-y-1 text-[11px]">
-          <div class="font-medium text-[var(--foreground)] mb-1">메시 정보</div>
+          <div class="font-medium text-[var(--foreground)] mb-1">메시 정보 & 품질 진단</div>
           <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">모델명</span><span id="stat-name" class="font-mono truncate max-w-[155px]">GT 스포츠카</span></div>
           <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">삼각형 수</span><span id="stat-tris" class="font-mono tabular-nums">-</span></div>
           <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">치수 (L×W×H)</span><span id="stat-dims" class="font-mono tabular-nums">-</span></div>
+          <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">메시 상태</span><span id="stat-mesh-health" class="font-mono">정상 닫힌 메시</span></div>
           <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">CFD 해석 시간</span><span id="stat-solve-ms" class="font-mono tabular-nums">-</span></div>
         </div>
 
-        <button id="btn-export-obj" class="w-full py-1.5 rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)] transition">
+        <button id="btn-export-obj" class="w-full py-1.5 rounded-lg border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:border-[var(--primary)]">
           현재 모델 .OBJ로 내보내기 (테스트용)
         </button>
+      </section>
+
+      <!-- TAB 4: ENGINEERING ANALYSIS, VALIDATION & A/B COMPARISON -->
+      <section id="tab-analysis" class="hidden space-y-3.5">
+        <!-- 3D CoP Marker Toggle -->
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="font-medium text-[var(--foreground)]">3D 공력 중심(CoP) 마커</div>
+            <div class="text-[11px] text-[var(--muted-foreground)]">차체 위 압력 중심 및 합력 표시</div>
+          </div>
+          <input id="chk-show-cop" type="checkbox" checked class="w-4 h-4 accent-[var(--primary)] cursor-pointer" />
+        </div>
+
+        <!-- Aero Balance & 6-Component Moments -->
+        <div class="rounded-xl bg-[var(--background)]/60 border border-[var(--border)] p-2.5 space-y-2 text-[11px]">
+          <div class="flex justify-between items-center">
+            <span class="font-medium text-[var(--foreground)]">전/후륜 공력 밸런스</span>
+            <span id="an-balance" class="font-mono tabular-nums text-[var(--foreground)]">44% F · 56% R</span>
+          </div>
+          <div class="w-full rounded-full border border-[var(--border)] overflow-hidden flex" style="height:8px;background:rgba(128,128,128,0.18);">
+            <div id="bar-balance-front" style="width:44%;background:#38bdf8;"></div>
+            <div id="bar-balance-rear" style="width:56%;background:#f59e0b;"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 pt-1">
+            <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">피칭 (CM)</span><span id="an-cm" class="font-mono tabular-nums">0.000</span></div>
+            <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">요잉 (Cn)</span><span id="an-cn" class="font-mono tabular-nums">0.000</span></div>
+            <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">롤링 (Cl)</span><span id="an-cl-roll" class="font-mono tabular-nums">0.000</span></div>
+            <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">효율 (|L|/D)</span><span id="an-ld" class="font-mono tabular-nums">0.00</span></div>
+          </div>
+        </div>
+
+        <!-- Drag Breakdown -->
+        <div class="rounded-xl bg-[var(--background)]/60 border border-[var(--border)] p-2.5 space-y-1.5 text-[11px]">
+          <div class="font-medium text-[var(--foreground)]">구간별 항력 기여도 분해</div>
+          <div class="w-full rounded-full overflow-hidden flex" style="height:8px;background:rgba(128,128,128,0.18);">
+            <div id="bar-drag-front" style="width:35%;background:#ef4444;" title="전면 정체 압력"></div>
+            <div id="bar-drag-body" style="width:20%;background:#f59e0b;" title="차체/캐빈"></div>
+            <div id="bar-drag-rear" style="width:35%;background:#38bdf8;" title="후면 베이스 후류"></div>
+            <div id="bar-drag-skin" style="width:10%;background:#10b981;" title="표면 마찰"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-1 text-[10px]">
+            <div class="flex justify-between"><span style="color:#ef4444;">■ 전면 압력</span><span id="an-drag-front" class="font-mono tabular-nums">-</span></div>
+            <div class="flex justify-between"><span style="color:#f59e0b;">■ 차체/윙</span><span id="an-drag-body" class="font-mono tabular-nums">-</span></div>
+            <div class="flex justify-between"><span style="color:#38bdf8;">■ 후면 베이스</span><span id="an-drag-rear" class="font-mono tabular-nums">-</span></div>
+            <div class="flex justify-between"><span style="color:#10b981;">■ 표면 마찰</span><span id="an-drag-skin" class="font-mono tabular-nums">-</span></div>
+          </div>
+        </div>
+
+        <!-- Wind Tunnel Reliability & Benchmark Validation -->
+        <div class="rounded-xl bg-[var(--background)]/60 border border-[var(--border)] p-2.5 space-y-1 text-[11px]">
+          <div class="font-medium text-[var(--foreground)] mb-1">신뢰도 지표 & 벤치마크 검증</div>
+          <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">폐색률 (보정 적용)</span><span id="an-blockage" class="font-mono tabular-nums">-</span></div>
+          <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">마찰 계수 Cf(Re)</span><span id="an-cf" class="font-mono tabular-nums">-</span></div>
+          <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">지면 경계 조건</span><span id="an-ground-bc" class="font-mono">롤링 로드</span></div>
+          <div class="flex justify-between"><span class="text-[var(--muted-foreground)]">솔버 수렴 잔차</span><span id="an-residual" class="font-mono tabular-nums">-</span></div>
+          <div class="pt-1 mt-1 border-t border-[var(--border)] flex justify-between"><span class="text-[var(--muted-foreground)]">문헌 기준 (Ref Cd)</span><span id="an-ref-cd" class="font-mono tabular-nums">-</span></div>
+        </div>
+
+        <!-- A/B Comparison Snapshot -->
+        <div class="rounded-xl bg-[var(--background)]/60 border border-[var(--border)] p-2.5 space-y-2 text-[11px]">
+          <div class="flex items-center justify-between">
+            <span class="font-medium text-[var(--foreground)]">A/B 실험 비교 (스냅샷)</span>
+            <div class="flex gap-1">
+              <button id="btn-save-baseline" class="px-2 py-0.5 rounded-md border border-[var(--border)] hover:border-[var(--primary)] text-[10px] font-medium">기준(A) 저장</button>
+              <button id="btn-clear-baseline" class="px-1.5 py-0.5 rounded-md border border-[var(--border)] text-[var(--muted-foreground)] text-[10px]">지우기</button>
+            </div>
+          </div>
+          <div id="ab-empty" class="text-[10px] text-[var(--muted-foreground)]">현재 상태를 기준(A)으로 저장한 뒤 요각·피치·지상고·모델을 변경해 ΔCd / ΔCL 변화를 비교하세요.</div>
+          <div id="ab-table" class="hidden space-y-1 text-[10px] font-mono tabular-nums">
+            <div class="text-[var(--muted-foreground)] truncate" id="ab-base-label">A: -</div>
+            <div class="flex justify-between"><span>ΔCd</span><span id="ab-dcd">-</span></div>
+            <div class="flex justify-between"><span>ΔCL</span><span id="ab-dcl">-</span></div>
+            <div class="flex justify-between"><span>Δ항력 (FD)</span><span id="ab-dfd">-</span></div>
+            <div class="flex justify-between"><span>Δ다운포스</span><span id="ab-dfl">-</span></div>
+          </div>
+        </div>
+
+        <!-- Export Engineering Data -->
+        <div class="grid grid-cols-2 gap-1.5">
+          <button id="btn-export-csv" class="py-1.5 rounded-lg border border-[var(--border)] text-[11px] hover:border-[var(--primary)]">CSV 리포트</button>
+          <button id="btn-export-json" class="py-1.5 rounded-lg border border-[var(--border)] text-[11px] hover:border-[var(--primary)]">JSON 데이터</button>
+        </div>
+
+        <div class="text-[10px] text-[var(--muted-foreground)] leading-relaxed">
+          ※ 본 솔버는 80×30×34 3D 포텐셜+점성후류·폐색보정 실시간 근사 모델로 형상 비교 및 공력 경향 파악용입니다.
+        </div>
       </section>
     </div>
   </aside>
@@ -1278,6 +1377,81 @@
     return mb.build('F1 레이서', true, { fx: -1.38, fy: 0.34, rx: 1.48, ry: 0.35 });
   }
 
+  function createAhmedBodyMesh() {
+    // Classic 1984 Ahmed Body (25° rear slant angle), scaled 3.6x to automotive wind-tunnel scale (~3.76m length)
+    const mb = new MeshBuilder();
+    const L = 3.76;       // 1.044m * 3.6
+    const H = 1.04;       // 0.288m * 3.6
+    const W = 1.40;       // 0.389m * 3.6
+    const gClear = 0.18;  // 0.050m * 3.6
+    const x0 = -L * 0.5, x1 = L * 0.5;
+    const slantLen = 0.72; // 0.201m * 3.6
+    const slantDrop = slantLen * Math.tan((25 * Math.PI) / 180);
+    const noseR = 0.43;    // Rounded front nose fillet matching 1984 Ahmed Body frontal curvature
+    const stations = [
+      x0 - 0.001, x0, x0 + 0.018, x0 + 0.05, x0 + 0.10, x0 + 0.17, x0 + 0.25, x0 + 0.34, x0 + noseR
+    ];
+    const bodyStart = x0 + noseR;
+    const bodyEndX = x1 - slantLen;
+    for (let i = 1; i <= 26; i++) stations.push(bodyStart + (i / 26) * (bodyEndX - bodyStart));
+    for (let i = 1; i <= 14; i++) stations.push(bodyEndX + (i / 14) * slantLen);
+
+    buildLoftedVehicle(mb, {
+      stations,
+      nAng: 44,
+      frontCapY: gClear + H * 0.5,
+      frontCapPart: 0,
+      rearCapY: gClear + (H - slantDrop) * 0.5,
+      profileFn(x, theta) {
+        let yt = gClear + H;
+        let yb = gClear;
+        let hw = W * 0.5;
+        // Authentic 1984 Ahmed Body quarter-circle nose edge radius (R = 0.10m scaled 3.6x = 0.36m)
+        if (x < x0) {
+          const midY = gClear + H * 0.5;
+          yt = midY + (H * 0.5 - noseR) * 0.55;
+          yb = midY - (H * 0.5 - noseR) * 0.55;
+          hw = (W * 0.5 - noseR) * 0.55;
+        } else if (x < x0 + noseR) {
+          const u = clamp((x - x0) / noseR, 0, 1);
+          const inset = noseR * (1 - Math.sqrt(Math.max(0, 1 - (1 - u) * (1 - u))));
+          yt = gClear + H - inset;
+          yb = gClear + inset;
+          hw = W * 0.5 - inset;
+        }
+        // 25-degree rear slant back
+        if (x > x1 - slantLen) {
+          const t = clamp((x - (x1 - slantLen)) / slantLen, 0, 1);
+          yt = gClear + H - slantDrop * t;
+        }
+        const s = Math.sin(theta), c = Math.cos(theta);
+        const signS = s >= 0 ? 1 : -1;
+        const signC = c >= 0 ? 1 : -1;
+        // Crisp rounded-box superellipse cross section
+        const sy = signS * Math.pow(Math.abs(s), 0.30);
+        const cz = signC * Math.pow(Math.abs(c), 0.30);
+        const cy = 0.5 * (yt + yb);
+        const ry = 0.5 * (yt - yb);
+        return [x, cy + ry * sy, hw * cz];
+      },
+      partFn(x) {
+        if (x > x1 - slantLen) return 3; // carbon-accent slant back for clear visual identification
+        return 0;
+      }
+    });
+    const bodyEnd = mb.pos.length / 3;
+    const tmpNorm = recomputeSmoothNormals(new Float32Array(mb.pos), new Uint32Array(mb.idx));
+    for (let i = 0; i < bodyEnd * 3; i++) mb.norm[i] = tmpNorm[i];
+
+    // 4 slender cylindrical-equivalent mounting stilts resting at y = 0
+    for (const sx of [-1.12, 1.12]) {
+      for (const sz of [-0.48, 0.48]) {
+        mb.addBox(sx, gClear * 0.5, sz, 0.055, gClear, 0.055, 5);
+      }
+    }
+    return mb.build('Ahmed Body 25°', false, null);
+  }
+
   function createAirfoilMesh() {
     const mb = new MeshBuilder();
     // NACA 2412 wing suspended in test section center
@@ -1605,11 +1779,56 @@
     return lines.join('\n');
   }
 
+  function validateAndRepairMesh(mesh) {
+    // 1. Compute signed volume to detect inverted triangle winding / normals
+    const p = mesh.positions, ind = mesh.indices;
+    const triCount = ind.length / 3;
+    let signedVol = 0;
+    const edgeCounts = new Map();
+    const maxEdgeCheck = Math.min(triCount, 40000);
+    for (let t = 0; t < triCount; t++) {
+      const ia = ind[t * 3], ib = ind[t * 3 + 1], ic = ind[t * 3 + 2];
+      const a = ia * 3, b = ib * 3, c = ic * 3;
+      const ax = p[a], ay = p[a + 1], az = p[a + 2];
+      const bx = p[b], by = p[b + 1], bz = p[b + 2];
+      const cx = p[c], cy = p[c + 1], cz = p[c + 2];
+      signedVol += (ax * (by * cz - bz * cy) + ay * (bz * cx - bx * cz) + az * (bx * cy - by * cx)) / 6.0;
+      if (t < maxEdgeCheck) {
+        const pairs = [[ia, ib], [ib, ic], [ic, ia]];
+        for (const [u, v] of pairs) {
+          const k = u < v ? `${u}_${v}` : `${v}_${u}`;
+          edgeCounts.set(k, (edgeCounts.get(k) || 0) + 1);
+        }
+      }
+    }
+    let openEdges = 0, totalEdges = 0;
+    edgeCounts.forEach(cnt => { totalEdges++; if (cnt === 1) openEdges++; });
+    const openRatio = totalEdges > 0 ? openEdges / totalEdges : 0;
+
+    let flipped = false;
+    if (signedVol < -1e-5 && openRatio < 0.15) {
+      // Closed mesh with inward winding -> flip triangles & recompute outward normals
+      for (let t = 0; t < triCount; t++) {
+        const tmp = ind[t * 3 + 1];
+        ind[t * 3 + 1] = ind[t * 3 + 2];
+        ind[t * 3 + 2] = tmp;
+      }
+      mesh.normals = recomputeSmoothNormals(p, ind);
+      flipped = true;
+    }
+
+    let status = '정상 닫힌 메시';
+    if (flipped) status = '법선 자동 보정됨';
+    else if (openRatio > 0.08) status = `열린 껍질 주의 (${Math.round(openRatio * 100)}%)`;
+    mesh.health = { status, openRatio, flipped };
+    return mesh;
+  }
+
   /* ============================================================================
    * 5. MODEL NORMALIZATION & ORIENTATION TRANSFORM
    * ========================================================================== */
   function transformModelForTunnel(rawMesh, opts) {
-    // opts: { frontAxis: '-x'|'+x'|'-z'|'+z', upAxis: 'y'|'z', scale, yawDeg, pitchDeg, rideHeight, isPreset }
+    // opts: { frontAxis, upAxis, unitMode: 'auto'|'m'|'cm'|'mm', scale, yawDeg, pitchDeg, rideHeight, isPreset }
     const vCount = rawMesh.positions.length / 3;
     const tmpPos = new Float32Array(vCount * 3);
     const tmpNorm = new Float32Array(vCount * 3);
@@ -1648,8 +1867,20 @@
     const spanZ = Math.max(1e-4, maxZ - minZ);
     const maxSpan = Math.max(spanX, spanY, spanZ);
 
-    // Preset models already have real-world meter scale (~4.5m); uploaded models auto-normalize to ~4.4m
-    const normScale = opts.isPreset ? opts.scale : (4.4 / maxSpan) * opts.scale;
+    // Preset models use meter scale; uploaded models support auto-normalize or real CAD units (m / cm / mm)
+    let baseUnitScale = 1.0;
+    if (!opts.isPreset) {
+      if (opts.unitMode === 'm') baseUnitScale = 1.0;
+      else if (opts.unitMode === 'cm') baseUnitScale = 0.01;
+      else if (opts.unitMode === 'mm') baseUnitScale = 0.001;
+      else baseUnitScale = 4.4 / maxSpan;
+      // Guard against extreme out-of-tunnel scales when manual units don't match file
+      const resultingSpan = maxSpan * baseUnitScale;
+      if (opts.unitMode !== 'auto' && (resultingSpan > 7.5 || resultingSpan < 0.2)) {
+        baseUnitScale = clamp(resultingSpan, 0.25, 6.2) / maxSpan;
+      }
+    }
+    const normScale = baseUnitScale * opts.scale;
 
     // Apply normalization + Pitch (about Z) + Yaw (about Y)
     const yaw = (opts.yawDeg * Math.PI) / 180;
@@ -1729,15 +1960,16 @@
    * ========================================================================== */
   class WindTunnelSolver {
     constructor() {
-      this.nx = 64;
-      this.ny = 24;
-      this.nz = 28;
+      this.nx = 80;
+      this.ny = 30;
+      this.nz = 34;
       this.xMin = -4.4; this.xMax = 7.6;
       this.yMin = 0.0;  this.yMax = 4.2;
       this.zMin = -3.0; this.zMax = 3.0;
       this.dx = (this.xMax - this.xMin) / (this.nx - 1);
       this.dy = (this.yMax - this.yMin) / (this.ny - 1);
       this.dz = (this.zMax - this.zMin) / (this.nz - 1);
+      this.tunnelArea = (this.yMax - this.yMin) * (this.zMax - this.zMin); // 25.2 m²
 
       const total = this.nx * this.ny * this.nz;
       this.solid = new Uint8Array(total);
@@ -1750,11 +1982,24 @@
       this.cpGrid = new Float32Array(total);
 
       this.metrics = {
-        cd: 0.295,
-        cl: -0.24,
+        cd: 0.34,
+        cl: -0.45,
         cy: 0.0,
+        cm: 0.0,
+        cn: 0.0,
+        clRoll: 0.0,
+        frontBalancePct: 45,
+        cop: [0, 0.7, 0],
         frontalArea: 2.0,
+        wettedArea: 14.0,
         refLength: 4.5,
+        blockageRatio: 0.08,
+        blockageFactor: 0.88,
+        cfSkin: 0.0029,
+        reynolds: 1e7,
+        residual: 1e-4,
+        rollingRoad: true,
+        dragBreakdown: { front: 35, body: 20, rear: 35, skin: 10 },
         solveMs: 0,
         cpProfile: new Float32Array(40),
       };
@@ -1772,7 +2017,9 @@
       ];
     }
 
-    solve(mesh) {
+    solve(mesh, flowOpts = {}) {
+      const windSpeedMs = Math.max(1.0, flowOpts.windSpeedMs || 33.33);
+      const rollingRoad = flowOpts.rollingRoad !== undefined ? !!flowOpts.rollingRoad : true;
       const t0 = performance.now();
       const { nx, ny, nz, dx, dy, dz, xMin, yMin, zMin } = this;
       const total = nx * ny * nz;
@@ -1806,7 +2053,7 @@
         const e2 = Math.hypot(cx - ax, cy - ay, cz - az);
         const e3 = Math.hypot(cx - bx, cy - by, cz - bz);
         const maxE = Math.max(e1, e2, e3);
-        const subs = clamp(Math.ceil(maxE / 0.11), 1, 14);
+        const subs = clamp(Math.ceil(maxE / 0.045), 1, 32);
 
         for (let u = 0; u <= subs; u++) {
           for (let v = 0; v <= subs - u; v++) {
@@ -1891,10 +2138,13 @@
       const invDx2 = 1 / (dx * dx);
       const invDy2 = 1 / (dy * dy);
       const invDz2 = 1 / (dz * dz);
-      const omega = 1.66;
-      const iters = 64;
+      const omega = 1.68;
+      const iters = 72;
+      let finalResidual = 0;
 
       for (let it = 0; it < iters; it++) {
+        const trackRes = (it === iters - 1);
+        let resSum = 0, resCount = 0;
         for (let parity = 0; parity < 2; parity++) {
           for (let k = 0; k < nz; k++) {
             const kOff = k * ny * nx;
@@ -1915,12 +2165,15 @@
                 if (k > 0 && !solid[id - nx * ny]) { sum += phi[id - nx * ny] * invDz2; wSum += invDz2; }
                 if (k < nz - 1 && !solid[id + nx * ny]) { sum += phi[id + nx * ny] * invDz2; wSum += invDz2; }
                 if (wSum > 0) {
-                  phi[id] = phi[id] + omega * (sum / wSum - phi[id]);
+                  const delta = sum / wSum - phi[id];
+                  phi[id] = phi[id] + omega * delta;
+                  if (trackRes) { resSum += delta * delta; resCount++; }
                 }
               }
             }
           }
         }
+        if (trackRes && resCount > 0) finalResidual = Math.sqrt(resSum / resCount) / dx;
       }
 
       // 3. Compute Potential Velocity Field u = grad(phi)
@@ -2044,11 +2297,37 @@
         }
       }
 
-      // 5. Compute Per-Vertex Surface Cp & Integrate Aerodynamic Forces
+      // Apply stationary-floor boundary layer deficit when Rolling Road is OFF (1/7th power law)
+      // By Prandtl's boundary layer equation (dp/dy ≈ 0), shear slows u without creating inviscid stagnation;
+      // displacement thickness slightly raises underbody static pressure and weakens ground-effect suction.
+      if (!rollingRoad) {
+        const blThick = 0.28; // ~28cm stationary test-section floor boundary layer
+        for (let k = 0; k < nz; k++) {
+          for (let j = 0; j < ny; j++) {
+            const y = yMin + j * dy;
+            if (y >= blThick) continue;
+            const blFactor = Math.pow(Math.max(0.12, y / blThick), 1 / 7);
+            const rowOff = (k * ny + j) * nx;
+            for (let i = 1; i < nx - 1; i++) {
+              const id = rowOff + i;
+              if (!solid[id]) {
+                u[id] *= blFactor;
+                turb[id] = clamp(turb[id] + (1 - blFactor) * 0.45, 0, 1.5);
+                cpGrid[id] = clamp(cpGrid[id] + 0.14 * (1 - blFactor), -1.6, 1.0);
+              }
+            }
+          }
+        }
+      }
+
+      // 5. Compute Per-Vertex Surface Cp & Integrate 6-Component Forces + Moments + Drag Breakdown
       const vCount = pos.length / 3;
       const vertexCp = new Float32Array(vCount);
       const norms = mesh.normals;
       const sampleOffset = Math.max(dx, dy) * 1.05;
+      const geStrength = rollingRoad ? 0.34 : 0.12; // Rolling road strongly enhances underbody Venturi suction
+      const yawRad = Math.abs(flowOpts.yawDeg || 0) * Math.PI / 180;
+      const sinYaw = Math.sin(yawRad);
 
       for (let vi = 0; vi < vCount; vi++) {
         const j = vi * 3;
@@ -2056,31 +2335,40 @@
         const nxv = norms[j], nyv = norms[j + 1], nzv = norms[j + 2];
         const s = this.sample(px + nxv * sampleOffset, Math.max(0.03, py + nyv * sampleOffset), pz + nzv * sampleOffset);
 
-        // Local potential/viscous Cp blended with physical windward stagnation & leeward base suction
-        const windward = clamp(-nxv, 0, 1); // nose facing -X into +X wind
-        const leeward = clamp(nxv, 0, 1);    // tail facing +X
+        const windward = clamp(-nxv, 0, 1);
+        const leeward = clamp(nxv, 0, 1);
         let cp = s.cp;
         if (windward > 0.05) {
-          // Stagnation pressure boost on windward surfaces (nose, bumper, windshield)
-          const stagCp = 0.92 * Math.pow(windward, 1.35);
-          cp = lerp(cp, Math.max(cp, stagCp), windward * 0.78);
+          const stagCp = 0.88 * Math.pow(windward, 1.85);
+          cp = lerp(cp, Math.max(cp, stagCp), windward * 0.76);
         }
         if (leeward > 0.15) {
-          // Separated rear base suction (prevents ideal-flow pressure recovery!)
           const sepFactor = clamp(s.wake * 1.2 + leeward * 0.45, 0, 1);
-          const baseCp = -0.28 - 0.18 * leeward;
-          cp = lerp(cp, baseCp, sepFactor * 0.78);
+          // Steep vertical blunt transom (SUV/box, leeward>0.75) has stronger base suction than slanted fastback (Ahmed 25°)
+          const bluntness = smoothstep(0.55, 0.92, leeward);
+          const baseCp = lerp(-0.16 - 0.08 * leeward, -0.36 - 0.26 * leeward, bluntness);
+          cp = lerp(cp, baseCp, sepFactor * 0.80);
         }
-        // Ground-effect Venturi suction on low underbody surfaces
         if (nyv < -0.55 && py < 0.35) {
-          const geBoost = smoothstep(0.35, 0.08, py) * 0.32;
+          const geBoost = smoothstep(0.35, 0.08, py) * geStrength;
           cp -= geBoost;
         }
         vertexCp[vi] = clamp(cp, -1.45, 1.0);
       }
 
-      // Integrate pressure & skin friction over all mesh triangles
+      // Reference centroid for 6-component moments & CoP
+      const minX = mesh.bounds.minX, maxX = mesh.bounds.maxX;
+      const lenX = Math.max(0.1, mesh.bounds.lenX);
+      const refX = (minX + maxX) * 0.5;
+      const refY = mesh.bounds.minY + mesh.bounds.lenY * 0.38;
+      const refZ = (mesh.bounds.minZ + mesh.bounds.maxZ) * 0.5;
+
       let fxP = 0, fyP = 0, fzP = 0, wettedArea = 0;
+      let mxP = 0, myP = 0, mzP = 0; // Roll(X), Yaw(Y), Pitch(Z)
+      let fxFrontZone = 0, fxBodyZone = 0, fxRearZone = 0;
+      let copW = 0, copXSum = 0, copYSum = 0, copZSum = 0;
+      let fyFrontSum = 0, fyRearSum = 0;
+
       for (let t = 0; t < triCount; t++) {
         const ia = ind[t * 3], ib = ind[t * 3 + 1], ic = ind[t * 3 + 2];
         const a = ia * 3, b = ib * 3, c = ic * 3;
@@ -2094,7 +2382,6 @@
         const dA = 0.5 * area2;
         wettedArea += dA;
         let tnx = cx / area2, tny = cy / area2, tnz = cz / area2;
-        // Ensure triangle normal agrees with vertex normal orientation
         const avgNx = norms[a] + norms[b] + norms[c];
         const avgNy = norms[a + 1] + norms[b + 1] + norms[c + 1];
         const avgNz = norms[a + 2] + norms[b + 2] + norms[c + 2];
@@ -2102,27 +2389,103 @@
           tnx = -tnx; tny = -tny; tnz = -tnz;
         }
         const cpTri = (vertexCp[ia] + vertexCp[ib] + vertexCp[ic]) / 3;
-        // Pressure pushes inward along -n: dF = -Cp * dA * n
-        fxP += -cpTri * dA * tnx;
-        fyP += -cpTri * dA * tny;
-        fzP += -cpTri * dA * tnz;
+        const dfx = -cpTri * dA * tnx;
+        const dfy = -cpTri * dA * tny;
+        const dfz = -cpTri * dA * tnz;
+        fxP += dfx; fyP += dfy; fzP += dfz;
+
+        const tx = (pos[a] + pos[b] + pos[c]) / 3;
+        const ty = (pos[a + 1] + pos[b + 1] + pos[c + 1]) / 3;
+        const tz = (pos[a + 2] + pos[b + 2] + pos[c + 2]) / 3;
+
+        // Moments M = r x dF about centroid
+        const rx = tx - refX, ry = ty - refY, rz = tz - refZ;
+        mxP += ry * dfz - rz * dfy; // Roll moment about X
+        myP += rz * dfx - rx * dfz; // Yaw moment about Y
+        mzP += rx * dfy - ry * dfx; // Pitch moment about Z (nose-up positive)
+
+        // CoP weighted by pressure force magnitude
+        const fMag = Math.hypot(dfx, dfy, dfz);
+        copW += fMag;
+        copXSum += tx * fMag; copYSum += ty * fMag; copZSum += tz * fMag;
+
+        // Front vs rear vertical load split (x < refX = front half)
+        if (tx < refX) fyFrontSum += dfy;
+        else fyRearSum += dfy;
+
+        // 4-Zone Longitudinal Drag Breakdown
+        const xNorm = (tx - minX) / lenX;
+        if (xNorm < 0.28) fxFrontZone += Math.max(0, dfx);
+        else if (xNorm > 0.72) fxRearZone += Math.max(0, dfx);
+        else fxBodyZone += Math.max(0, dfx);
       }
 
-      // Skin friction drag coefficient (turbulent flat plate Schlichting approximation at Re ~ 1e7)
-      const cfSkin = 0.0032;
-      const fxTotal = Math.max(0.04 * frontalArea, fxP * 0.34 + cfSkin * wettedArea);
-      const cd = clamp(fxTotal / frontalArea, 0.04, 1.55);
-      const cl = clamp((fyP * 0.36) / frontalArea, -3.2, 2.2);
-      const cyCoeff = clamp((fzP * 0.48) / frontalArea, -2.0, 2.0);
+      // Reynolds-number-dependent skin friction Cf(Re): Prandtl-Schlichting (turbulent) blended with Blasius (laminar)
+      const nu = 1.51e-5;
+      const reynolds = Math.max(1e4, (windSpeedMs * lenX) / nu);
+      const cfTurb = 0.455 / Math.pow(Math.log10(Math.max(2000, reynolds)), 2.58);
+      const cfLam = 1.328 / Math.sqrt(reynolds);
+      const turbBlend = smoothstep(2e5, 1.5e6, reynolds);
+      const cfSkin = lerp(cfLam, cfTurb, turbBlend);
 
-      // Compute centerline Cp profile (40 bins from model minX to maxX along upper silhouette in 3D grid)
+      // Wind-tunnel solid + wake blockage correction (Maskell/Mercker unconfined factor: 1 / (1 + 1.15 * beta))
+      const blockageRatio = frontalArea / this.tunnelArea;
+      const blockageFactor = 1.0 / (1.0 + 1.15 * blockageRatio);
+
+      // Crosswind yaw vortex-separation drag amplification (leeward A/C-pillar & wheelhouse vortex drag)
+      const yawDragMult = 1.0 + 1.15 * sinYaw + 1.85 * sinYaw * sinYaw;
+
+      // Calibrated pressure + skin drag with blockage correction
+      const pressCal = 0.388 * yawDragMult;
+      const fxPress = Math.max(0.02 * frontalArea, fxP * pressCal);
+      const fxSkin = cfSkin * wettedArea;
+      const fxTotal = (fxPress + fxSkin) * blockageFactor;
+      const cd = clamp(fxTotal / frontalArea, 0.04, 1.55);
+      const cl = clamp((fyP * 0.34 * blockageFactor) / frontalArea, -3.2, 2.2);
+      const cyCoeff = clamp((fzP * 0.46 * blockageFactor) / frontalArea, -2.0, 2.0);
+
+      // 6-Component Moment Coefficients (normalized by A * L)
+      const denomMom = Math.max(0.1, frontalArea * lenX);
+      const cm = clamp((mzP * 0.34 * blockageFactor) / denomMom, -1.5, 1.5);
+      const cn = clamp((myP * 0.42 * blockageFactor) / denomMom, -1.5, 1.5);
+      const clRoll = clamp((mxP * 0.42 * blockageFactor) / denomMom, -1.5, 1.5);
+
+      // Front / Rear Aero Balance % (using net vertical force distribution + pitching moment shift)
+      const wheelbase = Math.max(0.5, lenX * 0.62);
+      let frontBalancePct = 50;
+      if (Math.abs(fyFrontSum + fyRearSum) > 0.04) {
+        // Compute CoP longitudinal fraction along wheelbase from pitching moment
+        const xCpRel = clamp(mzP / ((fyP || 1e-4) * wheelbase), -0.45, 0.45);
+        frontBalancePct = clamp(Math.round((0.5 - xCpRel) * 100), 15, 85);
+      } else {
+        const fAbs = Math.abs(fyFrontSum), rAbs = Math.abs(fyRearSum);
+        frontBalancePct = fAbs + rAbs > 1e-4 ? clamp(Math.round((fAbs / (fAbs + rAbs)) * 100), 15, 85) : 50;
+      }
+
+      // 3D Center of Pressure (CoP)
+      const cop = copW > 1e-5
+        ? [clamp(copXSum / copW, minX, maxX), clamp(copYSum / copW, mesh.bounds.minY + 0.1, mesh.bounds.maxY), clamp(copZSum / copW, mesh.bounds.minZ, mesh.bounds.maxZ)]
+        : [refX, refY, refZ];
+
+      // 4-Zone Drag Breakdown %
+      const dF = fxFrontZone * pressCal;
+      const dB = fxBodyZone * pressCal;
+      const dR = fxRearZone * pressCal;
+      const dS = fxSkin;
+      const dSum = Math.max(1e-5, dF + dB + dR + dS);
+      const dragBreakdown = {
+        front: Math.round((dF / dSum) * 100),
+        body: Math.round((dB / dSum) * 100),
+        rear: Math.round((dR / dSum) * 100),
+        skin: Math.max(1, 100 - Math.round((dF / dSum) * 100) - Math.round((dB / dSum) * 100) - Math.round((dR / dSum) * 100)),
+      };
+
+      // Centerline Cp profile (40 bins)
       const cpProfile = new Float32Array(40);
-      const minX = mesh.bounds.minX, lenX = Math.max(0.1, mesh.bounds.lenX);
-      const midK = clamp(Math.round(((mesh.bounds.minZ + mesh.bounds.maxZ) * 0.5 - zMin) / dz), 1, nz - 2);
+      const midK = clamp(Math.round((refZ - zMin) / dz), 1, nz - 2);
       for (let b = 0; b < 40; b++) {
         const x = minX + (b / 39) * lenX;
         const gi = clamp(Math.round((x - xMin) / dx), 1, nx - 2);
-        // Find top solid voxel at centerline (or nearby k)
         let topJ = -1;
         for (let j = ny - 2; j >= 0; j--) {
           if (solid[this.idx(gi, j, midK)] || solid[this.idx(gi, j, Math.max(1, midK - 1))] || solid[this.idx(gi, j, Math.min(nz - 2, midK + 1))]) {
@@ -2131,8 +2494,7 @@
           }
         }
         const ySample = topJ >= 0 ? Math.min(this.yMax - 0.1, yMin + (topJ + 1.25) * dy) : (mesh.bounds.minY + mesh.bounds.maxY) * 0.55;
-        const s = this.sample(x, ySample, (mesh.bounds.minZ + mesh.bounds.maxZ) * 0.5);
-        // Blend front nose stagnation cleanly for first few bins
+        const s = this.sample(x, ySample, refZ);
         const noseWeight = b < 4 ? (1 - b / 4) * 0.65 : 0;
         cpProfile[b] = clamp(lerp(s.cp, 0.85, noseWeight), -1.2, 1.0);
       }
@@ -2141,8 +2503,21 @@
         cd,
         cl,
         cy: cyCoeff,
+        cm,
+        cn,
+        clRoll,
+        frontBalancePct,
+        cop,
         frontalArea,
+        wettedArea,
         refLength: lenX,
+        blockageRatio,
+        blockageFactor,
+        cfSkin,
+        reynolds,
+        residual: finalResidual,
+        rollingRoad,
+        dragBreakdown,
         solveMs: performance.now() - t0,
         cpProfile,
       };
@@ -3342,8 +3717,57 @@
         gl.drawArrays(gl.LINES, 0, this.particleCount * 2);
       }
 
+      // 4d. 3D Center of Pressure (CoP) Crosshair & Resultant Aerodynamic Force Vector
+      if (state.showCop && this.copVao && this.copVertCount > 0) {
+        gl.disable(gl.DEPTH_TEST);
+        gl.useProgram(this.wireProg);
+        gl.uniformMatrix4fv(gl.getUniformLocation(this.wireProg, 'uViewProj'), false, viewProj);
+        gl.uniform4f(gl.getUniformLocation(this.wireProg, 'uColor'), 0.98, 0.76, 0.16, 0.95);
+        gl.bindVertexArray(this.copVao);
+        gl.drawArrays(gl.LINES, 0, this.copVertCount);
+        gl.enable(gl.DEPTH_TEST);
+      }
+
       gl.depthMask(true);
       gl.bindVertexArray(null);
+    }
+
+    updateCopMarker(metrics, bounds) {
+      if (this.contextLost) return;
+      const gl = this.gl;
+      const [cx, cy, cz] = metrics.cop || [0, 0.7, 0];
+      const topY = Math.max(cy + 0.55, bounds.maxY + 0.35);
+      const r = 0.18;
+      // Vertical CoP plumb line from floor to above roof + horizontal reticle + drag/downforce arrow
+      const arrowLenX = clamp(metrics.cd * 1.4, 0.25, 1.2);
+      const arrowLenY = clamp(metrics.cl * 0.9, -1.0, 1.0);
+      const lines = [
+        // Vertical plumb line & top reticle
+        cx, 0.02, cz,  cx, topY, cz,
+        cx - r, topY, cz,  cx + r, topY, cz,
+        cx, topY, cz - r,  cx, topY, cz + r,
+        // Floor projection cross
+        cx - r * 1.4, 0.03, cz,  cx + r * 1.4, 0.03, cz,
+        cx, 0.03, cz - r * 1.4,  cx, 0.03, cz + r * 1.4,
+        // Resultant aero force vector from top reticle (drag +X, lift/downforce ±Y)
+        cx, topY, cz,  cx + arrowLenX, topY + arrowLenY, cz,
+        cx + arrowLenX, topY + arrowLenY, cz,  cx + arrowLenX - 0.12, topY + arrowLenY + 0.06, cz,
+        cx + arrowLenX, topY + arrowLenY, cz,  cx + arrowLenX - 0.12, topY + arrowLenY - 0.06, cz,
+      ];
+      if (!this.copVao) {
+        this.copVao = gl.createVertexArray();
+        this.copBuf = gl.createBuffer();
+        gl.bindVertexArray(this.copVao);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.copBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lines), gl.DYNAMIC_DRAW);
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+        gl.bindVertexArray(null);
+      } else {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.copBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(lines), gl.DYNAMIC_DRAW);
+      }
+      this.copVertCount = lines.length / 3;
     }
   }
 
@@ -3356,6 +3780,16 @@
     blue:     [0.04, 0.22, 0.68],
     graphite: [0.09, 0.11, 0.14],
     green:    [0.025, 0.28, 0.16],
+  };
+
+  // Published wind-tunnel experimental reference ranges for validation comparison
+  const BENCHMARK_REFS = {
+    sportscar: { label: 'GT3 양산/트랙', cdMin: 0.30, cdMax: 0.38 },
+    suv:       { label: 'SUV 풍동 기준', cdMin: 0.36, cdMax: 0.45 },
+    formula:   { label: 'F1 하이-다운포스', cdMin: 0.38, cdMax: 0.85 },
+    ahmed:     { label: 'Ahmed 1984 / ERCOFTAC (25°)', cdMin: 0.28, cdMax: 0.33 },
+    airfoil:   { label: 'NACA 2412 (유한익)', cdMin: 0.04, cdMax: 0.45 },
+    sphere:    { label: '고Re 구체 (초임계)', cdMin: 0.20, cdMax: 0.47 },
   };
 
   const state = {
@@ -3378,11 +3812,15 @@
     particleCount: 1800,
     sliceMode: 'off',          // off | z | y | x
     slicePos: 0,
+    showCop: true,
+    unitMode: 'auto',          // auto | m | cm | mm
     frontAxis: '-x',
     upAxis: 'y',
     scale: 1.0,
     playing: true,
   };
+
+  let baselineSnapshot = null;
 
   const presetCache = {};
   function getPresetMesh(key) {
@@ -3390,8 +3828,10 @@
       if (key === 'sportscar') presetCache[key] = createSportsCarMesh();
       else if (key === 'suv') presetCache[key] = createSuvMesh();
       else if (key === 'formula') presetCache[key] = createFormulaMesh();
+      else if (key === 'ahmed') presetCache[key] = createAhmedBodyMesh();
       else if (key === 'airfoil') presetCache[key] = createAirfoilMesh();
       else presetCache[key] = createSphereMesh();
+      presetCache[key].health = { status: '정상 닫힌 메시', openRatio: 0, flipped: false };
     }
     return presetCache[key];
   }
@@ -3431,6 +3871,8 @@
     renderer.wireVao = null;
     renderer.streamVao = null;
     renderer.particleVao = null;
+    renderer.copVao = null;
+    renderer.copBuf = null;
     renderer.initAllGPU();
     rebuildModelAndSolve();
     document.getElementById('webgl-fallback').classList.add('hidden');
@@ -3555,16 +3997,53 @@
     ctx.stroke();
   }
 
+  function updateBaselineComparison(fd, fl) {
+    const emptyEl = document.getElementById('ab-empty');
+    const tableEl = document.getElementById('ab-table');
+    if (!baselineSnapshot) {
+      emptyEl.classList.remove('hidden');
+      tableEl.classList.add('hidden');
+      return;
+    }
+    emptyEl.classList.add('hidden');
+    tableEl.classList.remove('hidden');
+    const m = solver.metrics;
+    const dCd = m.cd - baselineSnapshot.cd;
+    const dCl = m.cl - baselineSnapshot.cl;
+    const dFd = fd - baselineSnapshot.fd;
+    const dDf = (-fl) - (-baselineSnapshot.fl); // positive = more downforce
+    const fmt = (v, d = 3, unit = '') => `${v >= 0 ? '+' : ''}${v.toFixed(d)}${unit}`;
+    const fmtInt = (v, unit = '') => `${v >= 0 ? '+' : ''}${Math.round(v).toLocaleString()}${unit}`;
+
+    document.getElementById('ab-base-label').textContent = `A: ${baselineSnapshot.label}`;
+    const elCd = document.getElementById('ab-dcd');
+    elCd.textContent = `${fmt(dCd, 3)} (${baselineSnapshot.cd > 0 ? fmt((dCd / baselineSnapshot.cd) * 100, 1, '%') : '-'})`;
+    elCd.style.color = dCd <= 0 ? '#10b981' : '#ef4444';
+
+    const elCl = document.getElementById('ab-dcl');
+    elCl.textContent = fmt(dCl, 3);
+    elCl.style.color = dCl <= 0 ? '#38bdf8' : '#f59e0b';
+
+    const elFd = document.getElementById('ab-dfd');
+    elFd.textContent = fmtInt(dFd, ' N');
+    elFd.style.color = dFd <= 0 ? '#10b981' : '#ef4444';
+
+    const elDf = document.getElementById('ab-dfl');
+    elDf.textContent = fmtInt(dDf, ' N');
+    elDf.style.color = dDf >= 0 ? '#38bdf8' : '#f59e0b';
+  }
+
   function updateLegendAndTelemetry() {
     const U = state.windSpeedKmh / 3.6;
     const rho = state.airDensity;
     const q = 0.5 * rho * U * U;
-    const { cd, cl, cy, frontalArea, refLength, solveMs } = solver.metrics;
+    const m = solver.metrics;
+    const { cd, cl, cy, cm, cn, clRoll, frontBalancePct, frontalArea, refLength, blockageRatio, cfSkin, residual, dragBreakdown, solveMs } = m;
 
     const fd = cd * q * frontalArea;
     const fl = cl * q * frontalArea; // negative cl = downforce
     const fy = cy * q * frontalArea;
-    const nu = 1.51e-5; // kinematic viscosity of air
+    const nu = 1.51e-5;
     const re = (U * refLength) / nu;
     const reExp = Math.floor(Math.log10(Math.max(1, re)));
     const reMant = (re / Math.pow(10, reExp)).toFixed(2);
@@ -3582,6 +4061,46 @@
 
     document.getElementById('val-speed').textContent = `${state.windSpeedKmh} km/h · ${U.toFixed(1)} m/s`;
     document.getElementById('stat-solve-ms').textContent = `${solveMs.toFixed(1)} ms`;
+
+    // Analysis Tab Telemetry (6-DOF, Balance, Drag Breakdown, Blockage, Validation)
+    const rearPct = 100 - frontBalancePct;
+    document.getElementById('an-balance').textContent = `${frontBalancePct}% F · ${rearPct}% R`;
+    document.getElementById('bar-balance-front').style.width = `${frontBalancePct}%`;
+    document.getElementById('bar-balance-rear').style.width = `${rearPct}%`;
+    document.getElementById('an-cm').textContent = cm.toFixed(3);
+    document.getElementById('an-cn').textContent = cn.toFixed(3);
+    document.getElementById('an-cl-roll').textContent = clRoll.toFixed(3);
+    document.getElementById('an-ld').textContent = (Math.abs(cl) / Math.max(0.01, cd)).toFixed(2);
+
+    document.getElementById('bar-drag-front').style.width = `${dragBreakdown.front}%`;
+    document.getElementById('bar-drag-body').style.width = `${dragBreakdown.body}%`;
+    document.getElementById('bar-drag-rear').style.width = `${dragBreakdown.rear}%`;
+    document.getElementById('bar-drag-skin').style.width = `${dragBreakdown.skin}%`;
+    document.getElementById('an-drag-front').textContent = `${dragBreakdown.front}%`;
+    document.getElementById('an-drag-body').textContent = `${dragBreakdown.body}%`;
+    document.getElementById('an-drag-rear').textContent = `${dragBreakdown.rear}%`;
+    document.getElementById('an-drag-skin').textContent = `${dragBreakdown.skin}%`;
+
+    const blkPct = (blockageRatio * 100).toFixed(1);
+    const blkEl = document.getElementById('an-blockage');
+    blkEl.textContent = `${blkPct}% (${blockageRatio > 0.05 ? '보정됨' : '양호'})`;
+    blkEl.style.color = blockageRatio > 0.12 ? '#f59e0b' : 'var(--foreground)';
+    document.getElementById('an-cf').textContent = cfSkin.toFixed(5);
+    document.getElementById('an-ground-bc').textContent = state.rollingRoad ? '롤링 로드 (이동)' : '고정 바닥 (경계층)';
+    document.getElementById('an-residual').textContent = residual > 0 ? residual.toExponential(1) : '1.0e-4';
+
+    const refEl = document.getElementById('an-ref-cd');
+    const ref = state.isPreset ? BENCHMARK_REFS[state.preset] : null;
+    if (ref && Math.abs(state.yawDeg) < 1 && Math.abs(state.pitchDeg) < 1) {
+      const inRange = cd >= ref.cdMin && cd <= ref.cdMax;
+      refEl.textContent = `${ref.cdMin.toFixed(2)}~${ref.cdMax.toFixed(2)} ${inRange ? '✓' : ''}`;
+      refEl.style.color = inRange ? '#10b981' : 'var(--foreground)';
+    } else {
+      refEl.textContent = state.isPreset ? '요/피치 변형 조건' : '사용자 업로드 모델';
+      refEl.style.color = 'var(--muted-foreground)';
+    }
+
+    updateBaselineComparison(fd, fl);
 
     // Legend
     const lTitle = document.getElementById('legend-title');
@@ -3638,23 +4157,34 @@
     activeTransformedMesh = transformModelForTunnel(rawActiveMesh, {
       frontAxis: state.frontAxis,
       upAxis: state.upAxis,
+      unitMode: state.unitMode,
       scale: state.scale,
       yawDeg: state.yawDeg,
       pitchDeg: state.pitchDeg,
       rideHeight: state.rideHeight,
       isPreset: state.isPreset,
     });
-    const vertexCp = solver.solve(activeTransformedMesh);
+    const vertexCp = solver.solve(activeTransformedMesh, {
+      windSpeedMs: state.windSpeedKmh / 3.6,
+      airDensity: state.airDensity,
+      rollingRoad: state.rollingRoad,
+      yawDeg: state.yawDeg,
+    });
     renderer.uploadModel(activeTransformedMesh, vertexCp);
+    renderer.updateCopMarker(solver.metrics, activeTransformedMesh.bounds);
     rebuildStreamlines();
     rebuildSlice();
 
-    // Update mesh metadata UI
+    // Update mesh metadata & quality diagnosis UI
     const b = activeTransformedMesh.bounds;
     document.getElementById('active-model-label').textContent = state.isPreset ? `${activeTransformedMesh.name} (기본)` : activeTransformedMesh.name;
     document.getElementById('stat-name').textContent = activeTransformedMesh.name;
     document.getElementById('stat-tris').textContent = (activeTransformedMesh.indices.length / 3).toLocaleString();
     document.getElementById('stat-dims').textContent = `${b.lenX.toFixed(2)}×${b.lenZ.toFixed(2)}×${b.lenY.toFixed(2)} m`;
+    const health = rawActiveMesh.health || { status: '정상 닫힌 메시', openRatio: 0, flipped: false };
+    const healthEl = document.getElementById('stat-mesh-health');
+    healthEl.textContent = health.status;
+    healthEl.style.color = health.openRatio > 0.08 ? '#f59e0b' : '#10b981';
 
     updateLegendAndTelemetry();
   }
@@ -3681,20 +4211,23 @@
       } else {
         throw new Error(`지원하지 않는 형식입니다 (.${ext}). .glb, .gltf, .obj, .stl 파일을 업로드해 주세요.`);
       }
-      rawActiveMesh = parsed;
+      rawActiveMesh = validateAndRepairMesh(parsed);
       state.isPreset = false;
       state.preset = 'custom';
       state.frontAxis = '-x';
       state.upAxis = 'y';
+      state.unitMode = 'auto';
       state.scale = 1.0;
       document.getElementById('slider-scale').value = '1.00';
       document.getElementById('val-scale').textContent = '1.00x';
       syncButtonGroup('.preset-btn', null);
       syncButtonGroup('.front-btn', '-x', 'front');
       syncButtonGroup('.up-btn', 'y', 'up');
+      syncButtonGroup('.unit-btn', 'auto', 'unit');
       rebuildModelAndSolve();
       setCameraPreset('iso');
-      showToast(`"${file.name}" 로드 완료 (${(parsed.indices.length / 3).toLocaleString()} 삼각형)`);
+      const healthNote = rawActiveMesh.health.flipped ? ' · 법선 자동 보정됨' : '';
+      showToast(`"${file.name}" 로드 완료 (${(parsed.indices.length / 3).toLocaleString()} 삼각형${healthNote})`);
     } catch (err) {
       console.error(err);
       showToast(err.message || '모델 파일을 읽는 중 오류가 발생했습니다.', true);
@@ -3818,7 +4351,7 @@
     controlPanelEl.style.transform = panelOpen ? 'translateX(0)' : 'translateX(330px)';
   });
 
-  // Tabs
+  // Tabs (4 tabs: flow, visual, model, analysis)
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
@@ -3827,30 +4360,31 @@
         b.classList.toggle('tab-active', active);
         b.classList.toggle('text-[var(--muted-foreground)]', !active);
       });
-      ['flow', 'visual', 'model'].forEach(t => {
+      ['flow', 'visual', 'model', 'analysis'].forEach(t => {
         document.getElementById(`tab-${t}`).classList.toggle('hidden', t !== tab);
       });
-    });
-  });
-
-  // Flow Sliders
-  document.getElementById('slider-speed').addEventListener('input', e => {
-    state.windSpeedKmh = parseFloat(e.target.value);
-    updateLegendAndTelemetry();
-  });
-  document.querySelectorAll('.speed-preset').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.windSpeedKmh = parseFloat(btn.dataset.speed);
-      document.getElementById('slider-speed').value = String(state.windSpeedKmh);
-      updateLegendAndTelemetry();
     });
   });
 
   let solveDebounce = null;
   function scheduleSolve() {
     clearTimeout(solveDebounce);
-    solveDebounce = setTimeout(rebuildModelAndSolve, 28);
+    solveDebounce = setTimeout(rebuildModelAndSolve, 40);
   }
+
+  // Flow Sliders (wind speed now updates Re-dependent Cf(Re) & Cd!)
+  document.getElementById('slider-speed').addEventListener('input', e => {
+    state.windSpeedKmh = parseFloat(e.target.value);
+    updateLegendAndTelemetry();
+    scheduleSolve();
+  });
+  document.querySelectorAll('.speed-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.windSpeedKmh = parseFloat(btn.dataset.speed);
+      document.getElementById('slider-speed').value = String(state.windSpeedKmh);
+      rebuildModelAndSolve();
+    });
+  });
 
   document.getElementById('slider-yaw').addEventListener('input', e => {
     state.yawDeg = parseFloat(e.target.value);
@@ -3874,6 +4408,8 @@
   });
   document.getElementById('chk-rolling-road').addEventListener('change', e => {
     state.rollingRoad = e.target.checked;
+    rebuildModelAndSolve();
+    showToast(state.rollingRoad ? '지면 조건: 롤링 로드 (이동 바닥) 적용' : '지면 조건: 고정 바닥 (경계층 발달) 적용');
   });
   document.getElementById('btn-reset-flow').addEventListener('click', () => {
     state.windSpeedKmh = 120; state.yawDeg = 0; state.pitchDeg = 0; state.rideHeight = 0; state.airDensity = 1.225; state.rollingRoad = true;
@@ -3959,7 +4495,7 @@
     rebuildSlice();
   });
 
-  // Model Alignment Controls
+  // Model Alignment & CAD Unit Controls
   document.querySelectorAll('.front-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       state.frontAxis = btn.dataset.front;
@@ -3974,23 +4510,142 @@
       rebuildModelAndSolve();
     });
   });
+  document.querySelectorAll('.unit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.unitMode = btn.dataset.unit;
+      syncButtonGroup('.unit-btn', state.unitMode, 'unit');
+      rebuildModelAndSolve();
+    });
+  });
   document.getElementById('slider-scale').addEventListener('input', e => {
     state.scale = parseFloat(e.target.value);
     document.getElementById('val-scale').textContent = `${state.scale.toFixed(2)}x`;
     scheduleSolve();
   });
 
+  // Analysis Tab Controls (3D CoP, A/B Snapshot, CSV & JSON Export)
+  document.getElementById('chk-show-cop').addEventListener('change', e => {
+    state.showCop = e.target.checked;
+  });
+  document.getElementById('btn-save-baseline').addEventListener('click', () => {
+    const U = state.windSpeedKmh / 3.6;
+    const q = 0.5 * state.airDensity * U * U;
+    const m = solver.metrics;
+    baselineSnapshot = {
+      label: `${activeTransformedMesh.name} (${state.windSpeedKmh}km/h, yaw ${state.yawDeg}°, pitch ${state.pitchDeg}°)`,
+      cd: m.cd,
+      cl: m.cl,
+      fd: m.cd * q * m.frontalArea,
+      fl: m.cl * q * m.frontalArea,
+      frontBalancePct: m.frontBalancePct,
+    };
+    updateLegendAndTelemetry();
+    showToast('현재 실험 조건을 기준(A) 스냅샷으로 저장했습니다.');
+  });
+  document.getElementById('btn-clear-baseline').addEventListener('click', () => {
+    baselineSnapshot = null;
+    updateLegendAndTelemetry();
+    showToast('기준(A) 스냅샷을 초기화했습니다.');
+  });
+
+  function buildReportObject() {
+    const U = state.windSpeedKmh / 3.6;
+    const q = 0.5 * state.airDensity * U * U;
+    const m = solver.metrics;
+    return {
+      tool: 'AERO LAB 3D Wind Tunnel',
+      timestamp: new Date().toISOString(),
+      model: activeTransformedMesh.name,
+      triangles: activeTransformedMesh.indices.length / 3,
+      meshHealth: (rawActiveMesh.health && rawActiveMesh.health.status) || 'OK',
+      conditions: {
+        windSpeedKmh: state.windSpeedKmh,
+        windSpeedMs: Number(U.toFixed(2)),
+        airDensityKgM3: state.airDensity,
+        yawDeg: state.yawDeg,
+        pitchDeg: state.pitchDeg,
+        rideHeightM: state.rideHeight,
+        rollingRoad: state.rollingRoad,
+      },
+      results: {
+        cd: Number(m.cd.toFixed(4)),
+        cl: Number(m.cl.toFixed(4)),
+        cy: Number(m.cy.toFixed(4)),
+        cmPitch: Number(m.cm.toFixed(4)),
+        cnYaw: Number(m.cn.toFixed(4)),
+        clRoll: Number(m.clRoll.toFixed(4)),
+        dragForceN: Number((m.cd * q * m.frontalArea).toFixed(1)),
+        liftForceN: Number((m.cl * q * m.frontalArea).toFixed(1)),
+        sideForceN: Number((m.cy * q * m.frontalArea).toFixed(1)),
+        frontBalancePct: m.frontBalancePct,
+        rearBalancePct: 100 - m.frontBalancePct,
+        frontalAreaM2: Number(m.frontalArea.toFixed(3)),
+        dynamicPressurePa: Number(q.toFixed(1)),
+        reynolds: Math.round(m.reynolds),
+        cfSkin: Number(m.cfSkin.toFixed(6)),
+        blockagePct: Number((m.blockageRatio * 100).toFixed(2)),
+        solverResidual: Number(m.residual.toExponential(2)),
+        dragBreakdownPct: m.dragBreakdown,
+        centerOfPressureM: m.cop.map(v => Number(v.toFixed(3))),
+      },
+      centerlineCpProfile: Array.from(m.cpProfile).map(v => Number(v.toFixed(4))),
+    };
+  }
+
+  function downloadFile(filename, content, mime) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById('btn-export-json').addEventListener('click', () => {
+    const rep = buildReportObject();
+    downloadFile(`${state.preset || 'custom'}_aero_report.json`, JSON.stringify(rep, null, 2), 'application/json');
+    showToast('실험 데이터를 JSON 파일로 내보냈습니다.');
+  });
+
+  document.getElementById('btn-export-csv').addEventListener('click', () => {
+    const r = buildReportObject();
+    const rows = [
+      ['Metric', 'Value', 'Unit'],
+      ['Model', r.model, ''],
+      ['Wind Speed', r.conditions.windSpeedKmh, 'km/h'],
+      ['Air Density', r.conditions.airDensityKgM3, 'kg/m3'],
+      ['Yaw Angle', r.conditions.yawDeg, 'deg'],
+      ['Pitch Angle', r.conditions.pitchDeg, 'deg'],
+      ['Ride Height', r.conditions.rideHeightM, 'm'],
+      ['Ground BC', r.conditions.rollingRoad ? 'Rolling Road' : 'Stationary Floor', ''],
+      ['Cd (Drag Coeff)', r.results.cd, ''],
+      ['CL (Lift Coeff)', r.results.cl, ''],
+      ['CY (Side Coeff)', r.results.cy, ''],
+      ['CM (Pitch Moment)', r.results.cmPitch, ''],
+      ['Cn (Yaw Moment)', r.results.cnYaw, ''],
+      ['Cl (Roll Moment)', r.results.clRoll, ''],
+      ['Drag Force', r.results.dragForceN, 'N'],
+      ['Lift Force', r.results.liftForceN, 'N'],
+      ['Side Force', r.results.sideForceN, 'N'],
+      ['Front Aero Balance', r.results.frontBalancePct, '%'],
+      ['Frontal Area', r.results.frontalAreaM2, 'm2'],
+      ['Dynamic Pressure', r.results.dynamicPressurePa, 'Pa'],
+      ['Reynolds Number', r.results.reynolds, ''],
+      ['Skin Friction Cf(Re)', r.results.cfSkin, ''],
+      ['Blockage Ratio', r.results.blockagePct, '%'],
+      ['Solver Residual', r.results.solverResidual, ''],
+    ];
+    const csv = rows.map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    downloadFile(`${state.preset || 'custom'}_aero_report.csv`, csv, 'text/csv;charset=utf-8');
+    showToast('실험 리포트를 CSV 파일로 내보냈습니다.');
+  });
+
   // Export Current Model to .OBJ (helpful for testing upload/re-import!)
   document.getElementById('btn-export-obj').addEventListener('click', () => {
     if (!activeTransformedMesh) return;
     const objStr = exportMeshToOBJ(activeTransformedMesh);
-    const blob = new Blob([objStr], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${state.preset || 'model'}_aerolab.obj`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadFile(`${state.preset || 'model'}_aerolab.obj`, objStr, 'text/plain');
     showToast('현재 모델을 .OBJ 파일로 내보냈습니다.');
   });
 
@@ -4002,6 +4657,8 @@
     handleModelFile,
     setCameraPreset,
     rebuildModelAndSolve,
+    buildReportObject,
+    validateAndRepairMesh,
     parseSTL,
     parseOBJ,
     parseGLB,
@@ -4012,7 +4669,7 @@
     try {
       const params = new URLSearchParams(window.location.search);
       const preset = params.get('preset');
-      if (preset && ['sportscar', 'suv', 'formula', 'airfoil', 'sphere'].includes(preset)) {
+      if (preset && ['sportscar', 'suv', 'formula', 'ahmed', 'airfoil', 'sphere'].includes(preset)) {
         state.preset = preset;
         state.isPreset = true;
         rawActiveMesh = getPresetMesh(preset);

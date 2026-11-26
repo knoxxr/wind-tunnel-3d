@@ -278,7 +278,7 @@
         <div class="flex items-center justify-between pt-2 border-t border-[var(--border)]">
           <div>
             <div class="font-medium text-[var(--foreground)]">롤링 로드 (이동 바닥)</div>
-            <div class="text-[11px] text-[var(--muted-foreground)]">지면 벨트 및 바퀴 회전 연동</div>
+            <div class="text-[11px] text-[var(--muted-foreground)]">지면 벨트 이동 연동</div>
           </div>
           <input id="chk-rolling-road" type="checkbox" checked class="w-4 h-4 accent-[var(--primary)] cursor-pointer" />
         </div>
@@ -3267,8 +3267,8 @@
         gl.uniform3fv(gl.getUniformLocation(this.modelProg, 'uPaintColor'), paintRGB);
         gl.uniform1i(gl.getUniformLocation(this.modelProg, 'uSurfaceMode'), surfaceMode);
         gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uLightTheme'), lt);
-        gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uWheelSpin'), wheelSpin);
-        gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uHasWheels'), this.modelHasWheels ? 1.0 : 0.0);
+        gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uWheelSpin'), 0.0);
+        gl.uniform1f(gl.getUniformLocation(this.modelProg, 'uHasWheels'), 0.0);
         gl.uniform2f(gl.getUniformLocation(this.modelProg, 'uFrontAxle'), this.wheelMeta.fx, this.wheelMeta.fy);
         gl.uniform2f(gl.getUniformLocation(this.modelProg, 'uRearAxle'), this.wheelMeta.rx, this.wheelMeta.ry);
 
@@ -4099,7 +4099,6 @@
       simTime += dt * (0.45 + U / 42.0);
       if (state.rollingRoad) {
         beltOffset += dt * visualFlowSpeed * 0.85;
-        wheelSpin -= dt * visualFlowSpeed * 2.6;
       }
       if (state.showParticles) {
         renderer.stepParticles(solver, dt, visualFlowSpeed);

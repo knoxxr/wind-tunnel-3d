@@ -26,11 +26,11 @@
 
 | 화면 | 미리보기 |
 | --- | --- |
-| **GT 스포츠카 스튜디오 (Full HD)** | ![Hero](./screenshots/01_hero_gt_sportscar_red.png) |
+| **실사 3D 스포츠카 스튜디오 (Full HD)** | ![Hero](./screenshots/01_hero_gt_sportscar_red.png) |
 | **표면 압력(Cp) 히트맵 + 2D 단면 슬라이스** | ![Cp Heatmap](./screenshots/02_surface_pressure_cp_heatmap.png) |
 | **후면 와류(Wake) & 허니콤 풍동 입구** | ![Rear Wake](./screenshots/03_rear_wake_and_honeycomb.png) |
-| **F1 레이서 고속(260 km/h) 유동 해석** | ![F1 Racer](./screenshots/04_f1_racer_aero_slice.png) |
-| **사용자 3D 모델(.glb/.obj/.stl) 업로드** | ![Custom Upload](./screenshots/05_custom_model_upload.png) |
+| **공학 분석 탭 (3D CoP 마커 · 6분력 · A/B 비교)** | ![Engineering Analysis](./screenshots/04_engineering_analysis_cop_ab.png) |
+| **사용자 3D 모델(.glb/.obj/.stl) 업로드 & CAD 단위** | ![Custom Upload](./screenshots/05_custom_model_upload.png) |
 | **라이트 스튜디오 테마** | ![Light Studio](./screenshots/06_light_studio_mode.png) |
 
 ## Vercel 배포 방법

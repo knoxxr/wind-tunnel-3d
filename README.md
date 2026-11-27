@@ -6,9 +6,9 @@
 
 ## 주요 기능
 
-- **실사 무료 3D 자동차 모델 (단일 차량) & 공력 벤치마크**: 오픈소스 **Car Concept (168,668 삼각형 실사 3D GLB)** 기본 탑재 + 공력 검증용 비차량 기준 모델(**Ahmed Body 25°**, NACA 2412 에어포일, 표준 구체)
+- **실사 무료 3D 모델 (스포츠카 · 비행기) & 공력 벤치마크**: 오픈소스 **Car Concept (168,668 삼각형 실사 3D GLB)** 및 **Avanti S Jet 비행기 (108,611 삼각형 실사 3D GLB)** 기본 탑재 + 공력 검증용 기준 모델(**Ahmed Body 25°**, NACA 2412 에어포일, 표준 구체)
 - **사용자 3D 모델 업로드 & 메시 자동 보정**: `.glb`, `.gltf`, `.obj`, `.stl` (Binary/ASCII, 최대 50MB 안전 가드), glTF 재질 자동 PBR 분류, 실제 CAD 단위(`자동`/`m`/`cm`/`mm`) 지원, 반전된 법선/와인딩 자동 감지·복구
-- **고디테일 GGX 클리어코트 PBR 그래픽**: 천장 LED 소프트박스 스튜디오 반사(IBL), 5종 차체 페인트 실시간 전환, 2×2 트윌 카본 직조 질감, 멀티스포크 휠·브레이크 로터·크림슨 캘리퍼, 백라이트 허니콤 풍동 입구, 광택 에폭시 반사 바닥
+- **고디테일 GGX 클리어코트 PBR 그래픽**: 천장 LED 소프트박스 스튜디오 반사(IBL), 5종 차체/동체 페인트 실시간 전환, 2×2 트윌 카본 직조 질감, 틴티드 캐노피·유리 반사, 백라이트 허니콤 풍동 입구, 광택 에폭시 반사 바닥
 - **고신뢰도 80×30×34 3D CFD 해석 & 공학 분석 탭**:
   - 롤링 로드(이동 바닥) vs 고정 바닥 1/7승 경계층 물리 분리
   - 레이놀즈 수($Re$) 종속 피부 마찰 계수 $C_f(Re)$ (Prandtl–Schlichting / Blasius 블렌딩)
@@ -21,6 +21,7 @@
 ## 3D 모델 출처 및 라이선스
 
 - **기본 자동차 모델 (`models/car_concept.glb`)**: [Khronos Group glTF-Sample-Assets — Car Concept](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept) (CC-BY-4.0: Darmstadt Graphics Group GmbH & Eric Chadwick, 원작 Sketchfab Unity Fan CC0) 외장 최적화 버전.
+- **기본 비행기 모델 (`models/airplane.glb`)**: [OpenRCsimulator — Avanti S Jet](https://github.com/bultodepapas/OpenRCsimulator/tree/main/app/assets/aircraft/avanti-s-a200) (MIT License) 비행 외장 공력 최적화 버전.
 
 ## 스크린샷 갤러리 (`screenshots/`)
 

@@ -165,6 +165,7 @@
       <!-- Quick Model Presets -->
       <div class="hidden md:flex items-center gap-1" id="preset-bar">
         <button data-preset="car" class="preset-btn pill-active px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs transition hover:border-[var(--primary)]">스포츠카</button>
+        <button data-preset="airplane" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]" title="실사 아음속 제트기 3D 모델 (Avanti S)">비행기</button>
         <button data-preset="ahmed" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]" title="자동차 CFD 표준 검증 모델 (Ahmed 25°)">Ahmed 25°</button>
         <button data-preset="airfoil" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]">에어포일</button>
         <button data-preset="sphere" class="preset-btn px-2.5 py-1 rounded-lg border border-[var(--border)] text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] hover:border-[var(--primary)]">구체</button>
@@ -396,6 +397,7 @@
           <div class="font-medium text-[var(--foreground)]">기본 제공 / 벤치마크 모델</div>
           <div class="grid grid-cols-2 gap-1.5">
             <button data-preset="car" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">스포츠카 (3D GLB)</button>
+            <button data-preset="airplane" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">비행기 (3D GLB)</button>
             <button data-preset="ahmed" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">Ahmed Body 25°</button>
             <button data-preset="airfoil" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">NACA 에어포일</button>
             <button data-preset="sphere" class="preset-btn-panel py-1.5 px-2 rounded-lg border border-[var(--border)] text-[11px] text-left hover:border-[var(--primary)]">표준 구체</button>
@@ -1465,20 +1467,20 @@
       const rgh = pbr.roughnessFactor !== undefined ? pbr.roughnessFactor : 0.5;
       const em = mat.emissiveFactor || [0, 0, 0];
 
-      // Name-based OEM automotive material classification
-      if (name.includes('signal') || name.includes('indicator') || name.includes('amber')) return 11;
-      if (name.includes('headlight') || name.includes('brakelight') || name.includes('taillight') || name.includes('drl')) return 4;
-      if (name.includes('glass') || name.includes('window') || name.includes('windshield') || mat.alphaMode === 'BLEND') return 2;
+      // Name-based OEM automotive & aerospace material classification
+      if (name.includes('signal') || name.includes('indicator') || name.includes('amber') || name.includes('beacon')) return 11;
+      if (name.includes('headlight') || name.includes('brakelight') || name.includes('taillight') || name.includes('drl') || name.includes('navlight')) return 4;
+      if (name.includes('glass') || name.includes('window') || name.includes('windshield') || name.includes('canopy') || name.includes('cockpit') || mat.alphaMode === 'BLEND') return 2;
       if (name.includes('tire') || name.includes('tyre') || name.includes('rubber')) return 1;
       if (name.includes('disc') || name.includes('rotor')) return 6;
       if (name.includes('brake') || name.includes('caliper')) return 7;
       if (name.includes('rim1') || name.includes('rim_dark')) return 8;
-      if (name.includes('rim') || name.includes('alloy')) return 5;
+      if (name.includes('rim') || name.includes('alloy') || name.includes('turbine') || name.includes('nozzle')) return 5;
       if (name.includes('mirror') || name.includes('chrome') || name.includes('hardware') || name.includes('exhaust')) return 9;
       if (name.includes('paint 2') || name.includes('paint2') || name.includes('carbon') || name.includes('diffuser')) return 3;
-      if (name.includes('paint 1') || name.includes('paint1') || name.includes('body') || name.includes('carpaint')) return 0;
+      if (name.includes('paint 1') || name.includes('paint1') || name.includes('body') || name.includes('carpaint') || name.includes('fuselage') || name.includes('wing')) return 0;
       if (name.includes('trimdark') || name.includes('piano') || name.includes('gasket') || name.includes('wiper')) return 8;
-      if (name.includes('mechanical') || name.includes('license') || name.includes('plastic') || name.includes('cladding')) return 10;
+      if (name.includes('mechanical') || name.includes('license') || name.includes('plastic') || name.includes('cladding') || name.includes('intake') || name.includes('nacelle')) return 10;
 
       // Fallback PBR heuristic for arbitrary uploaded GLB models
       if (em[0] > 0.4 || em[1] > 0.4 || em[2] > 0.4) {
@@ -3653,10 +3655,11 @@
 
   // Published wind-tunnel experimental reference ranges for validation comparison
   const BENCHMARK_REFS = {
-    car:     { label: '공력 스포츠 쿠페 (Car Concept)', cdMin: 0.24, cdMax: 0.34 },
-    ahmed:   { label: 'Ahmed 1984 / ERCOFTAC (25°)', cdMin: 0.28, cdMax: 0.33 },
-    airfoil: { label: 'NACA 2412 (유한익)', cdMin: 0.04, cdMax: 0.45 },
-    sphere:  { label: '고Re 구체 (초임계)', cdMin: 0.20, cdMax: 0.47 },
+    car:      { label: '공력 스포츠 쿠페 (Car Concept)', cdMin: 0.24, cdMax: 0.34 },
+    airplane: { label: '아음속 제트기 (Avanti S)', cdMin: 0.06, cdMax: 0.16 },
+    ahmed:    { label: 'Ahmed 1984 / ERCOFTAC (25°)', cdMin: 0.28, cdMax: 0.33 },
+    airfoil:  { label: 'NACA 2412 (유한익)', cdMin: 0.04, cdMax: 0.45 },
+    sphere:   { label: '고Re 구체 (초임계)', cdMin: 0.20, cdMax: 0.47 },
   };
 
   const state = {
@@ -3690,24 +3693,33 @@
   let baselineSnapshot = null;
 
   const presetCache = {};
-  let carFetchPromise = null;
+  const presetGLBSpecs = {
+    car:      { url: './models/car_concept.glb', label: '스포츠카 (Car Concept)', errMsg: '3D 자동차 모델 로드 실패' },
+    airplane: { url: './models/airplane.glb',    label: '비행기 (Avanti S Jet)',   errMsg: '3D 비행기 모델 로드 실패' },
+  };
+  const presetFetchPromises = {};
   async function loadPresetMesh(key) {
     if (presetCache[key]) return presetCache[key];
-    if (key === 'car') {
-      if (!carFetchPromise) {
-        carFetchPromise = fetch('./models/car_concept.glb')
+    const glbSpec = presetGLBSpecs[key];
+    if (glbSpec) {
+      if (!presetFetchPromises[key]) {
+        presetFetchPromises[key] = fetch(glbSpec.url)
           .then(res => {
-            if (!res.ok) throw new Error(`3D 자동차 모델 로드 실패 (HTTP ${res.status})`);
+            if (!res.ok) throw new Error(`${glbSpec.errMsg} (HTTP ${res.status})`);
             return res.arrayBuffer();
           })
           .then(buf => {
-            const mesh = parseGLB(buf, '스포츠카 (Car Concept)');
+            const mesh = parseGLB(buf, glbSpec.label);
             mesh.health = { status: '실사 3D 모델 (GLB)', openRatio: 0, flipped: false };
-            presetCache.car = mesh;
+            presetCache[key] = mesh;
             return mesh;
+          })
+          .catch(err => {
+            delete presetFetchPromises[key];
+            throw err;
           });
       }
-      return await carFetchPromise;
+      return await presetFetchPromises[key];
     }
     if (key === 'ahmed') presetCache[key] = createAhmedBodyMesh();
     else if (key === 'airfoil') presetCache[key] = createAirfoilMesh();
@@ -4099,9 +4111,13 @@
       state.upAxis = 'y';
       state.unitMode = 'auto';
       state.scale = 1.0;
+      state.rideHeight = 0;
       document.getElementById('slider-scale').value = '1.00';
       document.getElementById('val-scale').textContent = '1.00x';
+      document.getElementById('slider-clearance').value = '0';
+      document.getElementById('val-clearance').textContent = '0.00 m';
       syncButtonGroup('.preset-btn', null);
+      syncButtonGroup('.preset-btn-panel', null);
       syncButtonGroup('.front-btn', '-x', 'front');
       syncButtonGroup('.up-btn', 'y', 'up');
       syncButtonGroup('.unit-btn', 'auto', 'unit');
@@ -4154,7 +4170,10 @@
 
   // Preset Selection
   let presetReqSeq = 0;
-  async function selectPreset(key, silent = false) {
+  function defaultRideHeightForPreset(key) {
+    return key === 'airplane' ? 0.56 : 0;
+  }
+  async function selectPreset(key, silent = false, opts = {}) {
     const reqId = ++presetReqSeq;
     const normKey = (key === 'sportscar' || key === 'suv' || key === 'formula') ? 'car' : key;
     state.preset = normKey;
@@ -4162,13 +4181,21 @@
     state.frontAxis = '-x';
     state.upAxis = 'y';
     state.scale = 1.0;
+    if (!opts.preserveClearance) {
+      state.rideHeight = defaultRideHeightForPreset(normKey);
+      document.getElementById('slider-clearance').value = String(state.rideHeight);
+      document.getElementById('val-clearance').textContent = `${state.rideHeight.toFixed(2)} m`;
+    }
     document.getElementById('slider-scale').value = '1.00';
     document.getElementById('val-scale').textContent = '1.00x';
     syncButtonGroup('.preset-btn', normKey, 'preset');
+    syncButtonGroup('.preset-btn-panel', normKey, 'preset');
     syncButtonGroup('.front-btn', '-x', 'front');
     syncButtonGroup('.up-btn', 'y', 'up');
     if (normKey === 'car' && !presetCache.car) {
       document.getElementById('active-model-label').textContent = '3D 자동차 로딩 중...';
+    } else if (normKey === 'airplane' && !presetCache.airplane) {
+      document.getElementById('active-model-label').textContent = '3D 비행기 로딩 중...';
     }
     try {
       const mesh = await loadPresetMesh(normKey);
@@ -4306,11 +4333,12 @@
     showToast(state.rollingRoad ? '지면 조건: 롤링 로드 (이동 바닥) 적용' : '지면 조건: 고정 바닥 (경계층 발달) 적용');
   });
   document.getElementById('btn-reset-flow').addEventListener('click', () => {
-    state.windSpeedKmh = 120; state.yawDeg = 0; state.pitchDeg = 0; state.rideHeight = 0; state.airDensity = 1.225; state.rollingRoad = true;
+    const defaultClearance = state.isPreset ? defaultRideHeightForPreset(state.preset) : 0;
+    state.windSpeedKmh = 120; state.yawDeg = 0; state.pitchDeg = 0; state.rideHeight = defaultClearance; state.airDensity = 1.225; state.rollingRoad = true;
     document.getElementById('slider-speed').value = '120';
     document.getElementById('slider-yaw').value = '0'; document.getElementById('val-yaw').textContent = '0.0°';
     document.getElementById('slider-pitch').value = '0'; document.getElementById('val-pitch').textContent = '0.0°';
-    document.getElementById('slider-clearance').value = '0'; document.getElementById('val-clearance').textContent = '0.00 m';
+    document.getElementById('slider-clearance').value = String(defaultClearance); document.getElementById('val-clearance').textContent = `${defaultClearance.toFixed(2)} m`;
     document.getElementById('slider-density').value = '1.225'; document.getElementById('val-density').textContent = '1.225 kg/m³';
     document.getElementById('chk-rolling-road').checked = true;
     rebuildModelAndSolve();
@@ -4560,14 +4588,16 @@
 
   // Restore Shared Experiment State from URL Query Parameters
   function applyStateFromURL() {
+    let hasExplicitClearance = false;
     try {
       const params = new URLSearchParams(window.location.search);
       const rawPreset = params.get('preset');
       const mapped = (rawPreset === 'sportscar' || rawPreset === 'suv' || rawPreset === 'formula') ? 'car' : rawPreset;
-      if (mapped && ['car', 'ahmed', 'airfoil', 'sphere'].includes(mapped)) {
+      if (mapped && ['car', 'airplane', 'ahmed', 'airfoil', 'sphere'].includes(mapped)) {
         state.preset = mapped;
         state.isPreset = true;
         syncButtonGroup('.preset-btn', mapped, 'preset');
+        syncButtonGroup('.preset-btn-panel', mapped, 'preset');
       }
       const speed = parseFloat(params.get('speed'));
       if (!isNaN(speed)) {
@@ -4588,6 +4618,7 @@
       }
       const clearance = parseFloat(params.get('clearance'));
       if (!isNaN(clearance)) {
+        hasExplicitClearance = true;
         state.rideHeight = clamp(clearance, 0, 0.6);
         document.getElementById('slider-clearance').value = String(state.rideHeight);
         document.getElementById('val-clearance').textContent = `${state.rideHeight.toFixed(2)} m`;
@@ -4613,12 +4644,13 @@
         syncButtonGroup('.rake-btn', rake, 'rake');
       }
     } catch { /* ignore malformed URL params */ }
+    return { hasExplicitClearance };
   }
 
   // Initialize & Main Animation Loop
-  applyStateFromURL();
+  const urlInit = applyStateFromURL();
   syncTheme();
-  selectPreset(state.preset, true);
+  selectPreset(state.preset, true, { preserveClearance: urlInit.hasExplicitClearance });
 
   let lastFrame = performance.now();
   let simTime = 0;
